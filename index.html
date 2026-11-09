@@ -105,6 +105,27 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 .row:nth-child(1) b { color: var(--gold); }
 .empty { color: var(--ink-dim); font-size: 17px; }
 .coin { color: var(--gold) !important; }
+.row2 { display: flex; gap: 10px; width: min(92vw, 330px); }
+.row2 .btn { min-width: 0; flex: 1; padding-left: 8px; padding-right: 8px; font-size: 16px; }
+.badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--blood); color: #fff; font: 800 13px var(--f-body); line-height: 18px; }
+.mislist { width: min(94vw, 420px); display: flex; flex-direction: column; gap: 8px; }
+.mis { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 10px 12px; text-align: left; }
+.mis.got { opacity: .55; }
+.mis .mt { font-weight: 700; font-size: 17px; grid-column: 1 / 3; }
+.mis .mbar { height: 8px; background: rgba(255,255,255,.12); border-radius: 4px; overflow: hidden; }
+.mis .mbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), #f0a91c); }
+.mis .mm { font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; grid-column: 1; }
+.mis .buy { grid-column: 2; grid-row: 2 / 4; margin: 0; padding: 7px 10px; }
+#banner { position: fixed; left: 0; right: 0; top: 34%; z-index: 4; pointer-events: none; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+#banner small { font: 700 16px var(--f-body); letter-spacing: .5em; color: #ffb3a8; }
+#banner b { font: 400 clamp(34px, 10vw, 64px) var(--f-display); color: #fff; text-shadow: 0 4px 0 #5a1410, 0 0 30px rgba(220,40,20,.6); }
+#banner.show { animation: bannerIn 2.6s ease both; }
+@keyframes bannerIn { 0% { opacity: 0; transform: scale(1.4); } 12% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.96); } }
+#toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); transform: translateX(-50%); z-index: 8; background: rgba(12,14,18,.92); border: 1px solid var(--gold); color: var(--ink); font-weight: 700; font-size: 16px; padding: 10px 16px; border-radius: 6px; max-width: 90vw; text-align: center; pointer-events: none; }
+#toast.show { animation: toastIn 3.2s ease both; }
+@keyframes toastIn { 0% { opacity: 0; transform: translate(-50%, 10px); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #banner.show, #toast.show { animation: none; } }
+
 .coinline { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font: 400 16px var(--f-display); font-style: normal; color: var(--gold); }
 .coinline i, .purse i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3b0, #f0a91c 60%, #8a5a06); display: inline-block; }
 .purse { display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--ink-dim); }
@@ -153,6 +174,8 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 </div>
 <div id="tag" hidden>4</div>
 <div id="floaters"></div>
+<div id="banner" hidden><small></small><b></b></div>
+<div id="toast" role="status" hidden></div>
 
 <section class="screen" id="scrMenu">
   <div class="eyebrow">TENEZ LE PONT</div>
@@ -160,6 +183,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
   <p>Glisse à gauche ou à droite. Choisis la bonne porte, grossis ton escouade et arrête la horde avant qu'elle ne te submerge.</p>
   <div class="hint"><span><span class="chip b">+5</span> <span class="chip b">×2</span> renforts</span><span><span class="chip r">−3</span> <span class="chip r">÷2</span> pertes</span><span><span class="chip p">caisse</span> tire dessus pour une arme</span></div>
   <div class="hint"><span>10 soldats du même rang <i>fusionnent</i> en un plus fort</span></div>
+  <div class="hint"><span>Zombies <i style="color:#ffd447">jaunes</i> rapides, <i style="color:#9fb0d0">gris</i> blindés, <i style="color:#ff6a50">rouges</i> explosifs</span></div>
   <div class="hint"><span>Astuce : <i>tire sur une porte rouge</i> pour faire monter son chiffre</span></div>
   <div class="pseudo">
     <label for="pseudoIn">TON PSEUDO</label>
@@ -169,7 +193,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
   <div class="btns">
     <button class="btn" id="playBtn" type="button">JOUER</button>
     <button class="btn ghost" id="newBtn" type="button" hidden>NOUVELLE PARTIE</button>
-    <button class="btn ghost" id="shopBtn" type="button">ARSENAL</button>
+    <div class="row2"><button class="btn ghost" id="shopBtn" type="button">ARSENAL</button><button class="btn ghost" id="misBtn" type="button">MISSIONS <span class="badge" id="misBadge" hidden>0</span></button></div>
     <button class="btn ghost" id="friendsBtn" type="button">AMIS EN LIGNE</button>
     <button class="btn ghost" id="boardBtn" type="button">MES PARTIES</button>
   </div>
@@ -182,6 +206,15 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
   <div class="purse"><i></i><b id="shopCoins">0</b><span>pièces</span></div>
   <div class="shop" id="shopList"></div>
   <div class="btns"><button class="btn ghost" id="shopBack" type="button">RETOUR</button></div>
+</section>
+
+<section class="screen" id="scrMis" hidden>
+  <div class="eyebrow">CHAQUE JOUR, DE NOUVELLES MISSIONS</div>
+  <h2>MISSIONS DU JOUR</h2>
+  <div class="purse"><i></i><b id="misCoins">0</b><span>pièces</span></div>
+  <div class="hint" id="misStreak"></div>
+  <div class="mislist" id="misList"></div>
+  <div class="btns"><button class="btn ghost" id="misBack" type="button">RETOUR</button></div>
 </section>
 
 <section class="screen" id="scrPause" hidden>
@@ -218,6 +251,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
     <div class="stat"><span>PIÈCES</span><b id="oCoins" class="coin">0</b></div>
   </div>
   <div class="btns">
+    <button class="btn" id="reviveBtn" type="button" hidden>CONTINUER</button>
     <button class="btn" id="retryBtn" type="button">RÉESSAYER</button>
     <button class="btn ghost" id="menuBtn" type="button">MENU</button>
   </div>
@@ -1191,7 +1225,7 @@ const S = {
   state: 'menu', level: 1, score: 0, kills: 0, best: 0, weapon: 1, scroll: 0, speed: 0, levelDist: 0,
   squadX: 0, targetX: 0, fireAcc: 0, fireIdx: 0, shake: 0, events: [], evIdx: 0, bossAt: 1,
   boss: null, timer: 0, hurt: 0, flash: 0, nextBolt: 9, startSquad: 6, startWeapon: 1, startScore: 0, menuSquad: 8,
-  cnt: [0, 0, 0, 0, 0, 0], extra: 0, coins: 0, runCoins: 0, wtype: 'rifle', startWtype: 'rifle', fuseT: 0
+  cnt: [0, 0, 0, 0, 0, 0], extra: 0, coins: 0, runCoins: 0, peak: 0, revived: false, slow: 0, wtype: 'rifle', startWtype: 'rifle', fuseT: 0
 };
 const soldiers = [], zombies = [], bullets = [], parts = [], decals = [], gates = [], barrels = [], floaters = [];
 let decalHead = 0;
@@ -1224,8 +1258,68 @@ const SHOP = [
 ];
 const UPG = { dmg: 0, rate: 0, armor: 0, squad: 0, gate: 0, arms: 0 };
 const upCost = (u) => Math.round(u.base * Math.pow(1.55, UPG[u.id]));
-function saveShop() { try { localStorage.setItem('pdm-shop', JSON.stringify({ coins: S.coins, up: UPG })); } catch (e) {} }
+function saveShop() { try { localStorage.setItem('pdm-shop', JSON.stringify({ coins: S.coins, up: UPG })); } catch (e) {} if (typeof pushProfile === 'function') pushProfile(); }
 function loadShop() { try { const d = JSON.parse(localStorage.getItem('pdm-shop') || 'null'); if (d) { S.coins = d.coins | 0; for (const k in UPG) UPG[k] = Math.min(SHOP.find((u) => u.id === k).max, d.up[k] | 0); } } catch (e) {} }
+const MISSION_POOL = [
+  (r) => ({ id: 'kills', n: 150 + Math.floor(r() * 6) * 50, txt: (n) => 'Abats ' + n + ' zombies', coins: 80 }),
+  (r) => ({ id: 'levels', n: 2 + Math.floor(r() * 3), txt: (n) => 'Termine ' + n + ' niveaux', coins: 120 }),
+  (r) => ({ id: 'boss', n: 1 + Math.floor(r() * 2), txt: (n) => 'Bats ' + n + ' boss', coins: 140 }),
+  (r) => ({ id: 'guns', n: 2 + Math.floor(r() * 2), txt: (n) => 'Ramasse ' + n + ' armes', coins: 90 }),
+  (r) => ({ id: 'trucks', n: 2 + Math.floor(r() * 3), txt: (n) => 'Détruis ' + n + ' camions blindés', coins: 110 }),
+  (r) => ({ id: 'tier', n: 3 + Math.floor(r() * 2), txt: (n) => 'Fais apparaître un ' + TIERS[n].name, coins: 130 }),
+  (r) => ({ id: 'power', n: [100, 200, 300, 500][Math.floor(r() * 4)], txt: (n) => 'Atteins une puissance de ' + n, coins: 100 })
+];
+const dayKey = (d) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; }; }
+let MIS = { day: '', list: [], prog: {}, claimed: [], login: '', streak: 0 };
+function loadMissions() {
+  try { const d = JSON.parse(localStorage.getItem('pdm-mis') || 'null'); if (d) MIS = Object.assign(MIS, d); } catch (e) {}
+  const day = dayKey(new Date());
+  if (MIS.day !== day) {
+    const r = seeded('pdm' + day), picks = [], pool = MISSION_POOL.slice();
+    while (picks.length < 3) picks.push(pool.splice(Math.floor(r() * pool.length), 1)[0](r));
+    MIS.day = day; MIS.list = picks.map((m) => ({ id: m.id, n: m.n, coins: m.coins })); MIS.prog = {}; MIS.claimed = [];
+  }
+  if (MIS.login !== day) {
+    const yd = dayKey(new Date(Date.now() - 864e5));
+    MIS.streak = MIS.login === yd ? Math.min(7, MIS.streak + 1) : 1; MIS.login = day;
+    const bonus = 30 + 20 * MIS.streak; S.coins += bonus; saveShop();
+    setTimeout(() => toast('Bonus du jour : +' + bonus + ' pièces (série ' + MIS.streak + '/7)'), 800);
+  }
+  saveMissions();
+}
+function saveMissions() { try { localStorage.setItem('pdm-mis', JSON.stringify(MIS)); } catch (e) {} }
+const misText = (m) => MISSION_POOL.map((f) => f(() => 0)).find((x) => x.id === m.id).txt(m.n);
+function track(id, v, absolute) {
+  if (!MIS.list.length) return;
+  let changed = false;
+  for (const m of MIS.list) if (m.id === id) {
+    const cur = MIS.prog[id] || 0, nv = absolute ? Math.max(cur, v) : cur + v;
+    if (nv !== cur) { const was = cur >= m.n; MIS.prog[id] = nv; changed = true; if (!was && nv >= m.n) toast('Mission accomplie : ' + misText(m)); }
+  }
+  if (changed) { saveMissions(); updateMisBadge(); }
+}
+function updateMisBadge() { const n = MIS.list.filter((m) => (MIS.prog[m.id] || 0) >= m.n && !MIS.claimed.includes(m.id)).length; const b = $('misBadge'); if (b) { b.textContent = n; b.hidden = !n; } }
+function renderMissions() {
+  const box = $('misList'); box.textContent = ''; $('misCoins').textContent = fmt(S.coins);
+  $('misStreak').textContent = 'Série de connexion : ' + MIS.streak + ' jour' + (MIS.streak > 1 ? 's' : '') + ' (bonus maximum à 7)';
+  for (const m of MIS.list) {
+    const pr = Math.min(m.n, MIS.prog[m.id] || 0), done = pr >= m.n, got = MIS.claimed.includes(m.id);
+    const c = document.createElement('div'); c.className = 'mis' + (got ? ' got' : '');
+    const t = document.createElement('div'); t.className = 'mt'; t.textContent = misText(m);
+    const bar = document.createElement('div'); bar.className = 'mbar'; const fill = document.createElement('i'); fill.style.width = (pr / m.n * 100) + '%'; bar.appendChild(fill);
+    const meta = document.createElement('div'); meta.className = 'mm'; meta.textContent = (m.id === 'tier' ? (done ? 'Fait' : 'Pas encore') : fmt(pr) + ' / ' + fmt(m.n));
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'buy';
+    if (got) { b.textContent = 'RÉCUPÉRÉ'; b.disabled = true; }
+    else if (done) { b.textContent = '+' + m.coins + ' PIÈCES'; b.addEventListener('click', () => { MIS.claimed.push(m.id); S.coins += m.coins; saveShop(); saveMissions(); sfx.win(); renderMissions(); updateMisBadge(); }); }
+    else { b.textContent = m.coins + ' PIÈCES'; b.disabled = true; }
+    c.append(t, bar, meta, b); box.appendChild(c);
+  }
+}
+let bannerT = null;
+function banner(a, b) { const el = $('banner'); el.firstElementChild.textContent = b; el.lastElementChild.textContent = a; el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); clearTimeout(bannerT); bannerT = setTimeout(() => { el.hidden = true; }, 2600); buzz([60, 60, 60]); }
+let toastT = null;
+function toast(msg) { const el = $('toast'); el.textContent = msg; el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 3200); }
 function addCoins(n) { S.coins += n; S.runCoins = (S.runCoins || 0) + n; }
 const lvlMul = () => (1 + 0.3 * (S.weapon - 1)) * (1 + 0.1 * UPG.dmg);
 const rateBonus = () => 1 + 0.06 * UPG.rate;
@@ -1274,6 +1368,7 @@ function syncBodies(fx) {
   soldiers.sort((p, q) => q.tier - p.tier);
 }
 function fusionFx(t) {
+  track('tier', t, true);
   if (S.timer - S.fuseT < 0.6) return; S.fuseT = S.timer; buzz([30, 30, 60]);
   floatText('FUSION · ' + TIERS[t].name, S.squadX, 3.4, -1.5, 'gold');
   burst(S.squadX, 1.2, 0, C.yellow, 30, 6, 0.12);
@@ -1306,16 +1401,30 @@ function formation(i, n) {
 const squadRadius = () => 0.7 * Math.sqrt(soldiers.length);
 
 // ---------- zombies ----------
-function spawnZombie(x, z, hp, spd, H) {
+const ZTYPES = {
+  runner: { hp: 0.6, spd: 2.1, s: 0.8, c: new THREE.Color(1.45, 1.3, 0.55) },
+  armored: { hp: 3.5, spd: 0.65, s: 1.28, c: new THREE.Color(0.42, 0.48, 0.62) },
+  bomber: { hp: 1.0, spd: 1.25, s: 1.05, c: new THREE.Color(1.9, 0.35, 0.25) }
+};
+function pickType() {
+  const L = S.level, r = Math.random();
+  if (L >= 3 && r < 0.08) return 'bomber';
+  if (L >= 2 && r < 0.2) return 'armored';
+  if (r < 0.4) return 'runner';
+  return null;
+}
+function spawnZombie(x, z, hp, spd, H, type) {
   const slot = zombieRig.alloc(); if (slot < 0) return;
-  const e = { slot, h: H || null, x, z, hp, ph: rand(0, 6), spd: spd ?? rand(1.4, 2.8) + S.level * 0.08, s: rand(0.88, 1.06), tilt: rand(-0.3, 0.3), off: rand(-1, 1), alive: true };
+  const T = type ? ZTYPES[type] : null;
+  const e = { slot, type: type || null, h: H || null, x, z, hp: hp * (T ? T.hp : 1), ph: rand(0, 6), spd: (spd ?? rand(1.4, 2.8) + S.level * 0.08) * (T ? T.spd : 1), s: rand(0.88, 1.06) * (T ? T.s : 1), tilt: rand(-0.3, 0.3), off: rand(-1, 1), alive: true };
   zombies.push(e);
-  e.cP = pick(PANTS); e.cS = pick(SHIRTS); e.cK = pick(SKINS);
+  e.cP = pick(PANTS); e.cS = T ? T.c : pick(SHIRTS); e.cK = pick(SKINS);
   zombieRig.color(slot, 0, e.cP); zombieRig.color(slot, 1, e.cS); zombieRig.color(slot, 2, e.cK); zombieRig.color(slot, 3, e.cK);
 }
 function killZombie(i, scored) {
   const z = zombies[i];
-  if (scored) { S.score += 10; S.kills++; addCoins(1); }
+  if (scored) { S.score += 10; S.kills++; addCoins(z.type === 'armored' ? 3 : 1); track('kills', 1); }
+  if (z.type === 'bomber') { z.type = null; const bx = z.x, bz = z.z; setTimeout(() => explode(bx, bz, squadDps() * 0.6 + 10, 2.4), 0); burst(bx, 1, bz, C.spark, 18, 7, 0.2); }
   burst(z.x, 1.1, z.z, C.blood, 9, 4.5, 0.13); burst(z.x, 1.2, z.z, C.gore, 4, 3, 0.11);
   addDecal(z.x, z.z - 0.4, rand(0.5, 1.0));
   sfx.splat();
@@ -1333,7 +1442,7 @@ function spawnHorde(count, i, side) {
   else if (r < 0.4) { cx = rand(-3, 3); wid = rand(3.5, 5); } else if (r < 0.75) { cx = 0; wid = 11; } else { cx = rand(-2, 2); wid = 7.5; }
   const H = { label: makeLabel(false), hp: 0, n: 0, x: 0, z: 0 }; hordes.push(H);
   const depth = Math.max(2, count * 0.62 / wid), hp = Math.max(1 + S.level * 0.5 + i * 0.08, squadDps() * 1.1 / Math.max(1, count) * (1 + S.level * 0.08));
-  for (let k = 0; k < count; k++) spawnZombie(clamp(cx + rand(-wid / 2, wid / 2), -HALF + 0.4, HALF - 0.4), SPAWNZ - rand(0, depth), hp, undefined, H);
+  for (let k = 0; k < count; k++) spawnZombie(clamp(cx + rand(-wid / 2, wid / 2), -HALF + 0.4, HALF - 0.4), SPAWNZ - rand(0, depth), hp, undefined, H, pickType());
 }
 
 // ---------- portes ----------
@@ -1400,7 +1509,7 @@ function truckDie(k, crashed) {
   const t = trucks[k];
   explode(t.x, t.z, 0, 0.1); burst(t.x, 1.5, t.z, C.spark, 30, 9, 0.22); burst(t.x, 2, t.z, C.smoke, 16, 3, 0.6);
   sfx.boom(true); S.shake = 0.8; addDecal(t.x, t.z, 2.2);
-  if (!crashed) { S.score += 150; addCoins(8 + S.level * 2); const H = { label: makeLabel(false), hp: 0, n: 0, x: 0, z: 0 }; hordes.push(H); for (let q = 0; q < 6 + S.level; q++) spawnZombie(clamp(t.x + rand(-1.5, 1.5), -HALF + 0.4, HALF - 0.4), t.z - rand(0, 2), 1 + S.level * 0.5, undefined, H); }
+  if (!crashed) { track('trucks', 1); S.score += 150; addCoins(8 + S.level * 2); const H = { label: makeLabel(false), hp: 0, n: 0, x: 0, z: 0 }; hordes.push(H); for (let q = 0; q < 6 + S.level; q++) spawnZombie(clamp(t.x + rand(-1.5, 1.5), -HALF + 0.4, HALF - 0.4), t.z - rand(0, 2), 1 + S.level * 0.5, undefined, H); }
   scene.remove(t.g); dropLabel(t.label); trucks.splice(k, 1);
 }
 function spawnWall(i) {
@@ -1479,7 +1588,7 @@ function destroyBarrel(i) {
   burst(b.x, 1, b.z, b.kind === 'squad' ? C.teal : C.purple, 26, 7, 0.2);
   burst(b.x, 1, b.z, C.yellow, 16, 6, 0.14); burst(b.x, 1.2, b.z, C.smoke, 10, 2.5, 0.35);
   sfx.boom(false); S.shake = Math.max(S.shake, 0.35); S.score += 50;
-  if (b.kind === 'gun') { S.wtype = b.gun; floatText(WEAP[b.gun].name, b.x, 3.2, b.z, 'gold'); sfx.win(); ring.position.set(S.squadX, 0.08, 0); ring.scale.setScalar(0.6); ring.material.opacity = 1; ring.material.color.copy(col(0xffd040)); }
+  if (b.kind === 'gun') { track('guns', 1); S.wtype = b.gun; floatText(WEAP[b.gun].name, b.x, 3.2, b.z, 'gold'); sfx.win(); ring.position.set(S.squadX, 0.08, 0); ring.scale.setScalar(0.6); ring.material.opacity = 1; ring.material.color.copy(col(0xffd040)); }
   else if (b.kind === 'weapon') { S.weapon = Math.min(10, S.weapon + 1); floatText('ARME NIV. ' + S.weapon, b.x, 3, b.z, 'gold'); sfx.win(); }
   else { gainPower(b.reward); floatText('+' + fmt(b.reward), b.x, 3, b.z, 'good'); sfx.gate(true); }
   scene.remove(b.g); b.tex.dispose(); barrels.splice(i, 1);
@@ -1577,7 +1686,7 @@ function spawnBoss() {
   S.boss = Object.assign(b, { x: 0, z: SPAWNZ - 6, hp, max: hp, ph: 0, atk: 1.5, wind: 0, minion: 3, flash: 0, top, label: makeLabel(true) });
   S.boss.label.sp.scale.set(4.2, 1.6, 1);
   $('bossName').textContent = BOSSES[type].name;
-  $('bossBox').hidden = false; sfx.roar(); S.shake = 0.4;
+  $('bossBox').hidden = false; sfx.roar(); S.shake = 0.4; banner(BOSSES[type].name, 'APPROCHE');
 }
 
 // ---------- étiquettes de points de vie ----------
@@ -1662,7 +1771,7 @@ function clearWorld() {
 function startLevel() {
   clearWorld();
   S.weapon = S.startWeapon; S.wtype = S.startWtype || 'rifle'; S.score = S.startScore; S.kills = 0;
-  setSquad(S.startSquad + 2 * UPG.squad); S.runCoins = 0;
+  setSquad(S.startSquad + 2 * UPG.squad); S.runCoins = 0; S.revived = false; S.peak = power();
   S.events = buildLevel(S.level); S.evIdx = 0; S.bossAt = S.events[S.events.length - 1].at; S.levelDist = 0;
   S.state = 'play'; S.timer = 0;
   for (const id of ['scrMenu', 'scrOver', 'scrClear']) $(id).hidden = true;
@@ -1856,7 +1965,7 @@ function update(dt) {
       let best = -1, bd = 0.62;
       for (let k = 0; k < soldiers.length; k++) { const s = soldiers[k], d = Math.hypot(s.x - z.x, s.z - z.z) - (TIERS[s.tier].s - 1) * 0.5; if (d < bd) { bd = d; best = k; } }
       if (best < 0 && z.z > sr + 0.6) best = nearestSoldier(z.x, z.z);
-      if (best >= 0) { hitBody(best, 1); killZombie(i, false); continue; }
+      if (best >= 0) { if (z.type === 'bomber') { for (let q = 0; q < 3; q++) { const j = nearestSoldier(z.x, z.z); if (j >= 0) hitBody(j, 2); } z.type = null; explode(z.x, z.z, 0, 0.1); } else hitBody(best, z.type === 'armored' ? 2 : 1); killZombie(i, false); continue; }
     }
     if (z.z > 14) { zombieRig.release(z.slot); zombies.splice(i, 1); continue; }
     if (z.hit > 0) { z.hit -= dt; if (!z.fl) { z.fl = true; zombieRig.color(z.slot, 1, FLASHC); zombieRig.color(z.slot, 2, FLASHC); } }
@@ -1951,6 +2060,7 @@ function update(dt) {
   decalMesh.count = dc; decalMesh.instanceMatrix.needsUpdate = true;
 
   // fin de partie
+  if (playing) { const pw = power(); if (pw > S.peak) S.peak = pw; if (S.timer % 1 < dt) track('power', pw, true); }
   if (playing && soldiers.length === 0) { S.state = 'lost'; S.timer = 0; sfx.roar(); }
   if (st === 'lost' && S.timer > 1.3) showOver();
   if (st === 'won' && S.timer > 1.8) showClear();
@@ -1987,7 +2097,7 @@ function bossDie() {
   for (let k = 0; k < 6; k++) addDecal(bo.x + rand(-2, 2), bo.z + rand(-2, 2), rand(0.8, 1.8));
   scene.remove(bo.g); dropLabel(bo.label); S.boss = null; $('bossBox').hidden = true;
   for (let i = zombies.length - 1; i >= 0; i--) killZombie(i, true);
-  S.score += 500 * S.level; addCoins(40 + 20 * S.level); sfx.boom(true); sfx.win(); S.shake = 1; buzz([80, 40, 120]);
+  S.score += 500 * S.level; addCoins(40 + 20 * S.level); track('boss', 1); S.slow = 1.4; sfx.boom(true); sfx.win(); S.shake = 1; buzz([80, 40, 120]);
   floatText(BOSSES[bo.type].done, S.squadX, 4, -6, 'gold');
   S.state = 'won'; S.timer = 0;
 }
@@ -2017,13 +2127,15 @@ function showOver() {
   $('oLvl').textContent = S.level; $('oKills').textContent = S.kills; $('oScore').textContent = S.score.toLocaleString('fr-FR');
   S.best = Math.max(S.best, S.score); record(); save();
   $('oWho').textContent = S.pseudo;
+  const rc = reviveCost(), rb = $('reviveBtn'); rb.hidden = S.revived; rb.disabled = S.coins < rc; rb.textContent = 'CONTINUER · ' + fmt(rc) + ' PIÈCES';
+  $('retryBtn').className = S.revived ? 'btn' : 'btn ghost';
   $('scrOver').hidden = false; $('tag').hidden = true;
 }
 function showClear() {
   S.state = 'clear';
   $('cTitle').textContent = 'NIVEAU ' + S.level + ' TENU';
   $('cSquad').textContent = fmt(power()); $('cWpn').textContent = WEAP[S.wtype].short + ' ' + S.weapon; $('cScore').textContent = S.score.toLocaleString('fr-FR');
-  record();
+  record(); track('levels', 1);
   addCoins(15 + 10 * S.level); saveShop(); $('cCoins').textContent = '+' + S.runCoins;
   S.level++; S.startSquad = Math.max(6, power()); S.startWeapon = S.weapon; S.startWtype = S.wtype; S.startScore = S.score;
   S.best = Math.max(S.best, S.score); save();
@@ -2059,6 +2171,7 @@ async function onlineInit() {
     const d = await withTimeout(ON.db.collection('players').doc(ON.uid).get(), 12000);
     ON.me = d.exists ? d.data() : null; ON.ok = true; ON.why = '';
     if (ON.me && S.best < (ON.me.best || 0)) S.best = ON.me.best;
+    if (ON.me) { let ch = false; if ((ON.me.coins | 0) > S.coins) { S.coins = ON.me.coins | 0; ch = true; } const u = ON.me.up || {}; for (const k in UPG) if ((u[k] | 0) > UPG[k]) { UPG[k] = Math.min(SHOP.find((x) => x.id === k).max, u[k] | 0); ch = true; } if (ch) saveShop(); pushProfile(); }
     if (S.pseudo && (!ON.me || ON.me.pseudo !== S.pseudo)) await claimPseudo(S.pseudo).catch(() => {});
   } catch (e) { console.warn('classement en ligne indisponible', e); ON.ok = false; ON.why = 'net'; }
 }
@@ -2085,10 +2198,16 @@ async function ensurePseudoOnline() {
 }
 function pushScore() {
   if (!ON.ok || !ON.me) return;
-  const best = Math.floor(Math.max(ON.me.best || 0, S.score)), level = Math.floor(Math.max(ON.me.level || 1, S.level));
-  if (best === ON.me.best && level === ON.me.level) return;
-  ON.me.best = best; ON.me.level = level;
-  ON.db.collection('players').doc(ON.uid).set({ pseudo: ON.me.pseudo, best, level, friends: ON.me.friends || [], updated: firebase.firestore.FieldValue.serverTimestamp() }).catch((e) => console.warn(e));
+  ON.me.best = Math.floor(Math.max(ON.me.best || 0, S.score)); ON.me.level = Math.floor(Math.max(ON.me.level || 1, S.level));
+  pushProfile();
+}
+let pushT = null;
+function pushProfile() {
+  if (!ON.ok || !ON.me) return;
+  clearTimeout(pushT);
+  pushT = setTimeout(() => {
+    ON.db.collection('players').doc(ON.uid).set({ pseudo: ON.me.pseudo, best: Math.floor(ON.me.best || 0), level: Math.floor(ON.me.level || 1), friends: ON.me.friends || [], coins: Math.floor(S.coins), up: Object.assign({}, UPG), updated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch((e) => console.warn(e));
+  }, 400);
 }
 function onMsg(t, bad) { const m = $('onMsg'); m.textContent = t; m.className = 'onmsg' + (bad ? ' bad' : ''); }
 async function addFriend() {
@@ -2177,6 +2296,18 @@ function showBoard() {
 $('boardBtn').addEventListener('click', showBoard);
 $('boardBack').addEventListener('click', () => { $('scrBoard').hidden = true; $('scrMenu').hidden = false; });
 $('retryBtn').addEventListener('click', startLevel);
+const reviveCost = () => 80 + 40 * S.level;
+$('reviveBtn').addEventListener('click', () => {
+  const c = reviveCost(); if (S.coins < c || S.revived) return;
+  S.coins -= c; S.revived = true; saveShop();
+  for (let i = zombies.length - 1; i >= 0; i--) if (zombies[i].z > -30) killZombie(i, false);
+  for (let k = trucks.length - 1; k >= 0; k--) if (trucks[k].z > -30) truckDie(k, true);
+  if (S.boss) S.boss.z = Math.min(S.boss.z, -40);
+  setSquad(Math.max(6, Math.round(S.peak * 0.5)));
+  $('scrOver').hidden = true; $('tag').hidden = false; S.state = 'play'; S.hurt = 0;
+  ring.position.set(S.squadX, 0.08, 0); ring.scale.setScalar(0.6); ring.material.opacity = 1; ring.material.color.copy(col(0x6fe0ff));
+  floatText('RENFORTS !', S.squadX, 3.4, -1.5, 'good'); sfx.win(); music.start();
+});
 $('menuBtn').addEventListener('click', showMenu);
 $('nextBtn').addEventListener('click', startLevel);
 function renderShop() {
@@ -2197,6 +2328,8 @@ function renderShop() {
 let shopFrom = 'scrMenu';
 function openShop(from) { audioInit(); shopFrom = from; $(from).hidden = true; $('scrShop').hidden = false; renderShop(); }
 $('shopBtn').addEventListener('click', () => openShop('scrMenu'));
+$('misBtn').addEventListener('click', () => { $('scrMenu').hidden = true; $('scrMis').hidden = false; renderMissions(); });
+$('misBack').addEventListener('click', () => { $('scrMis').hidden = true; $('scrMenu').hidden = false; });
 $('shopBtn2').addEventListener('click', () => openShop('scrClear'));
 $('shopBack').addEventListener('click', () => { $('scrShop').hidden = true; $(shopFrom).hidden = false; });
 function pauseGame() { if (S.state !== 'play') return; S.state = 'pause'; $('scrPause').hidden = false; music.stop(); }
@@ -2235,7 +2368,8 @@ function perf(dt) {
 let last = 0;
 function frame(t) {
   requestAnimationFrame(frame);
-  const now = t / 1000, dt = last ? Math.min(0.05, now - last) : 0.016; last = now;
+  const now = t / 1000; let dt = last ? Math.min(0.05, now - last) : 0.016; last = now;
+  if (S.slow > 0) { S.slow -= dt; dt *= 0.3; }
   update(dt);
   if (composer) { gradePass.uniforms.time.value = now; gradePass.uniforms.hurt.value = S.hurt; gradePass.uniforms.flash.value = S.flash * S.flash; composer.render(dt); }
   else renderer.render(scene, camera);
@@ -2246,7 +2380,8 @@ function boot(data) {
   const sv = load() || {};
   const src = data && data.level ? data : sv;
   if (src.level) { S.level = src.level; S.startSquad = src.squad || 6; S.startWeapon = src.weapon || 1; S.startWtype = WEAP[src.wtype] ? src.wtype : 'rifle'; S.startScore = src.score || 0; }
-  loadShop(); S.best = sv.best || 0; S.runId = sv.runId || (src.level > 1 ? 'old' : ''); S.pseudo = getPseudo(); $('hudWho').textContent = S.pseudo;
+  loadShop();
+  S.best = sv.best || 0; loadMissions(); updateMisBadge(); S.runId = sv.runId || (src.level > 1 ? 'old' : ''); S.pseudo = getPseudo(); $('hudWho').textContent = S.pseudo;
   resize(); showMenu();
   const pb = $('playBtn'), label = pb.textContent; pb.disabled = true; pb.textContent = 'CHARGEMENT…';
   const done = () => { pb.disabled = false; pb.textContent = label; };
