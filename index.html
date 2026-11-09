@@ -1970,7 +1970,8 @@ async function onlineInit() {
     if (!window.firebase) { await loadScript(FBV + 'firebase-app-compat.js'); await Promise.all([loadScript(FBV + 'firebase-auth-compat.js'), loadScript(FBV + 'firebase-firestore-compat.js')]); }
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     const auth = firebase.auth();
-    if (!auth.currentUser) await withTimeout(auth.signInAnonymously(), 12000);
+    const restored = await withTimeout(new Promise((res) => { const un = auth.onAuthStateChanged((u) => { un(); res(u); }); }), 12000).catch(() => null);
+    if (!restored && !auth.currentUser) await withTimeout(auth.signInAnonymously(), 12000);
     ON.uid = auth.currentUser.uid; ON.db = firebase.firestore();
     const d = await withTimeout(ON.db.collection('players').doc(ON.uid).get(), 12000);
     ON.me = d.exists ? d.data() : null; ON.ok = true; ON.why = '';
