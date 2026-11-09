@@ -104,6 +104,21 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 .row.me { background: rgba(255,207,63,.18); outline: 1px solid rgba(255,207,63,.5); }
 .row:nth-child(1) b { color: var(--gold); }
 .empty { color: var(--ink-dim); font-size: 17px; }
+.coin { color: var(--gold) !important; }
+.coinline { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font: 400 16px var(--f-display); font-style: normal; color: var(--gold); }
+.coinline i, .purse i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3b0, #f0a91c 60%, #8a5a06); display: inline-block; }
+.purse { display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--ink-dim); }
+.purse b { font: 400 30px var(--f-display); color: var(--gold); font-variant-numeric: tabular-nums; }
+.purse i { width: 20px; height: 20px; }
+.shop { width: min(94vw, 440px); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 56vh; overflow-y: auto; }
+.card { background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0; }
+.card h3 { margin: 0; font: 400 15px var(--f-display); letter-spacing: .04em; color: var(--ink); }
+.card p { margin: 0; font-size: 14px; line-height: 1.25; color: var(--ink-dim); }
+.pips { display: flex; gap: 2px; flex-wrap: wrap; }
+.pips span { width: 7px; height: 7px; border-radius: 1px; background: rgba(255,255,255,.15); }
+.pips span.on { background: var(--gold); }
+.buy { margin-top: auto; font: 700 16px var(--f-body); letter-spacing: .06em; color: #1a1208; background: linear-gradient(180deg, #ffd95a, #f0a91c); border: 0; border-radius: 4px; padding: 7px; cursor: pointer; }
+.buy:disabled { background: rgba(255,255,255,.12); color: var(--ink-dim); cursor: default; }
 .row5 { grid-template-columns: 34px 1fr auto 70px 30px; }
 .rm { width: 30px; height: 30px; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.35); color: var(--ink); font-size: 14px; cursor: pointer; }
 .rm:disabled { visibility: hidden; }
@@ -127,7 +142,8 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
   <div class="top">
     <div class="lvl"><span class="who" id="hudWho"></span><b id="lvlTxt">NIVEAU 1</b><div class="prog"><i id="progBar"></i></div></div>
     <div class="right">
-      <div class="score"><small>SCORE</small><span id="scoreTxt">0</span></div>
+      <div class="score"><small>SCORE</small><span id="scoreTxt">0</span><em class="coinline"><i></i><span id="coinTxt">0</span></em></div>
+      <button class="iconbtn" id="pauseBtn" type="button" aria-label="Pause">II</button>
       <button class="iconbtn" id="muteBtn" type="button">SON</button>
     </div>
   </div>
@@ -153,10 +169,25 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
   <div class="btns">
     <button class="btn" id="playBtn" type="button">JOUER</button>
     <button class="btn ghost" id="newBtn" type="button" hidden>NOUVELLE PARTIE</button>
+    <button class="btn ghost" id="shopBtn" type="button">ARSENAL</button>
     <button class="btn ghost" id="friendsBtn" type="button">AMIS EN LIGNE</button>
     <button class="btn ghost" id="boardBtn" type="button">MES PARTIES</button>
   </div>
   <div class="hint" id="bestTxt"></div>
+</section>
+
+<section class="screen" id="scrShop" hidden>
+  <div class="eyebrow">AMÉLIORATIONS PERMANENTES</div>
+  <h2>ARSENAL</h2>
+  <div class="purse"><i></i><b id="shopCoins">0</b><span>pièces</span></div>
+  <div class="shop" id="shopList"></div>
+  <div class="btns"><button class="btn ghost" id="shopBack" type="button">RETOUR</button></div>
+</section>
+
+<section class="screen" id="scrPause" hidden>
+  <div class="eyebrow">PARTIE EN PAUSE</div>
+  <h2>PAUSE</h2>
+  <div class="btns"><button class="btn" id="resumeBtn" type="button">CONTINUER</button><button class="btn ghost" id="quitBtn" type="button">QUITTER LE NIVEAU</button></div>
 </section>
 
 <section class="screen" id="scrFriends" hidden>
@@ -184,6 +215,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
     <div class="stat"><span>NIVEAU</span><b id="oLvl">1</b></div>
     <div class="stat"><span>ZOMBIES</span><b id="oKills">0</b></div>
     <div class="stat"><span>SCORE</span><b id="oScore">0</b></div>
+    <div class="stat"><span>PIÈCES</span><b id="oCoins" class="coin">0</b></div>
   </div>
   <div class="btns">
     <button class="btn" id="retryBtn" type="button">RÉESSAYER</button>
@@ -198,9 +230,10 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
     <div class="stat"><span>PUISSANCE</span><b id="cSquad">0</b></div>
     <div class="stat"><span>ARME</span><b id="cWpn">1</b></div>
     <div class="stat"><span>SCORE</span><b id="cScore">0</b></div>
+    <div class="stat"><span>PIÈCES</span><b id="cCoins" class="coin">0</b></div>
   </div>
   <p>La horde suivante est plus grosse. Ton escouade et ton arme te suivent.</p>
-  <div class="btns"><button class="btn" id="nextBtn" type="button">NIVEAU SUIVANT</button></div>
+  <div class="btns"><button class="btn" id="nextBtn" type="button">NIVEAU SUIVANT</button><button class="btn ghost" id="shopBtn2" type="button">ARSENAL</button></div>
 </section>
 <div id="err" hidden>Ton navigateur ne peut pas afficher la 3D (WebGL). Essaie avec Chrome ou Safari à jour.</div>
 
@@ -917,6 +950,35 @@ function tone(f0, f1, dur, type, vol, delay = 0) {
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
+const music = (() => {
+  let on = false, timer = null, step = 0, next = 0, bus = null;
+  const BPM = 104, SPB = 60 / BPM / 2;
+  const ROOT = [55, 55, 65.4, 49];
+  function note(f, t, d, type, vol, filt) {
+    const o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
+    o.type = type; o.frequency.setValueAtTime(f, t); lp.type = 'lowpass'; lp.frequency.value = filt || 900;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(lp); lp.connect(g); g.connect(bus); o.start(t); o.stop(t + d + 0.05);
+  }
+  function hat(t, vol) { const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); src.buffer = noiseBuf; f.type = 'highpass'; f.frequency.value = 7000; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); src.connect(f); f.connect(g); g.connect(bus); src.start(t, Math.random() * 0.5); src.stop(t + 0.08); }
+  function kick(t, vol) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.15); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.25); }
+  function tick() {
+    if (!AC || !on) return;
+    while (next < AC.currentTime + 0.25) {
+      const bar = Math.floor(step / 16) % 4, s16 = step % 16, r = ROOT[bar], boss = !!S.boss;
+      if (s16 % 4 === 0) kick(next, boss ? 0.5 : 0.35);
+      if (s16 % 2 === 1) hat(next, boss ? 0.06 : 0.035);
+      if (s16 % 2 === 0) note(r, next, SPB * 1.8, 'sawtooth', 0.07, boss ? 1400 : 700);
+      if (s16 === 0) note(r * 2, next, SPB * 14, 'triangle', 0.03, 1200);
+      if (boss && (s16 === 6 || s16 === 14)) note(r * 3, next, SPB * 1.5, 'square', 0.025, 2000);
+      next += SPB; step++;
+    }
+  }
+  return {
+    start() { if (!AC || muted || on) return; on = true; if (!bus) { bus = AC.createGain(); bus.gain.value = 0.55; bus.connect(master); } next = AC.currentTime + 0.05; timer = setInterval(tick, 60); tick(); },
+    stop() { on = false; clearInterval(timer); timer = null; }
+  };
+})();
 const sfx = {
   shot() { if (!AC || muted) return; const n = AC.currentTime; if (n - tShot < 0.075) return; tShot = n; noise(0.07, 'bandpass', rand(1900, 2600), 0.8, 0.16); tone(170, 80, 0.05, 'square', 0.025); },
   splat() { if (!AC || muted) return; const n = AC.currentTime; if (n - tSplat < 0.06) return; tSplat = n; noise(0.16, 'lowpass', rand(500, 900), 1, 0.28); tone(rand(120, 160), 45, 0.14, 'sine', 0.18); },
@@ -1129,7 +1191,7 @@ const S = {
   state: 'menu', level: 1, score: 0, kills: 0, best: 0, weapon: 1, scroll: 0, speed: 0, levelDist: 0,
   squadX: 0, targetX: 0, fireAcc: 0, fireIdx: 0, shake: 0, events: [], evIdx: 0, bossAt: 1,
   boss: null, timer: 0, hurt: 0, flash: 0, nextBolt: 9, startSquad: 6, startWeapon: 1, startScore: 0, menuSquad: 8,
-  cnt: [0, 0, 0, 0, 0, 0], extra: 0, wtype: 'rifle', startWtype: 'rifle', fuseT: 0
+  cnt: [0, 0, 0, 0, 0, 0], extra: 0, coins: 0, runCoins: 0, wtype: 'rifle', startWtype: 'rifle', fuseT: 0
 };
 const soldiers = [], zombies = [], bullets = [], parts = [], decals = [], gates = [], barrels = [], floaters = [];
 let decalHead = 0;
@@ -1152,9 +1214,23 @@ const TIERS = [null,
 const tierVal = (t) => Math.pow(10, t - 1);
 const tierMul = (t) => tierVal(t) * Math.pow(1.15, t - 1);
 const rateMul = (t) => Math.pow(3.16, t - 1);
-const lvlMul = () => 1 + 0.3 * (S.weapon - 1);
+const SHOP = [
+  { id: 'dmg', name: 'MUNITIONS LOURDES', desc: '+10 % de dégâts', max: 20, base: 60 },
+  { id: 'rate', name: 'CADENCE', desc: '+6 % de vitesse de tir', max: 15, base: 70 },
+  { id: 'armor', name: 'BLINDAGE', desc: '+50 % de résistance des soldats', max: 10, base: 90 },
+  { id: 'squad', name: 'RENFORTS', desc: '+2 soldats au début de chaque niveau', max: 20, base: 50 },
+  { id: 'gate', name: 'NÉGOCIATEUR', desc: '+8 % sur les portes bleues', max: 10, base: 80 },
+  { id: 'arms', name: 'ARMURIER', desc: '+1 niveau d\'arme au départ', max: 5, base: 150 }
+];
+const UPG = { dmg: 0, rate: 0, armor: 0, squad: 0, gate: 0, arms: 0 };
+const upCost = (u) => Math.round(u.base * Math.pow(1.55, UPG[u.id]));
+function saveShop() { try { localStorage.setItem('pdm-shop', JSON.stringify({ coins: S.coins, up: UPG })); } catch (e) {} }
+function loadShop() { try { const d = JSON.parse(localStorage.getItem('pdm-shop') || 'null'); if (d) { S.coins = d.coins | 0; for (const k in UPG) UPG[k] = Math.min(SHOP.find((u) => u.id === k).max, d.up[k] | 0); } } catch (e) {} }
+function addCoins(n) { S.coins += n; S.runCoins = (S.runCoins || 0) + n; }
+const lvlMul = () => (1 + 0.3 * (S.weapon - 1)) * (1 + 0.1 * UPG.dmg);
+const rateBonus = () => 1 + 0.06 * UPG.rate;
 function power() { let p = S.extra; for (let t = 1; t <= 5; t++) p += S.cnt[t] * tierVal(t); return p; }
-function squadDps() { const W = WEAP[S.wtype]; let e = S.extra; for (let t = 1; t <= 5; t++) e += S.cnt[t] * tierMul(t); return Math.max(1, e) * W.rate * W.dmg * W.n * lvlMul(); }
+function squadDps() { const W = WEAP[S.wtype]; let e = S.extra; for (let t = 1; t <= 5; t++) e += S.cnt[t] * tierMul(t); return Math.max(1, e) * W.rate * W.dmg * W.n * (1 + 0.3 * (S.weapon - 1)); }
 const fmt = (n) => n >= 100000 ? Math.round(n / 1000) + 'k' : n.toLocaleString('fr-FR');
 
 function save() { try { localStorage.setItem('pdm-save', JSON.stringify({ runId: S.runId, level: S.level, squad: S.startSquad, weapon: S.startWeapon, wtype: S.startWtype, score: S.startScore, best: S.best })); } catch (e) {} }
@@ -1174,7 +1250,7 @@ function load() { try { return JSON.parse(localStorage.getItem('pdm-save') || 'n
 // ---------- soldats ----------
 function addBody(t, x, z) {
   const slot = soldierRig.alloc(); if (slot < 0) return;
-  soldiers.push({ slot, tier: t, hp: TIERS[t].hp, x: x ?? S.squadX, z: z ?? 0, ph: rand(0, 6), walk: 1, bob: 0, kick: 0, spin: 0, pop: 0.01 });
+  soldiers.push({ slot, tier: t, hp: Math.ceil(TIERS[t].hp * (1 + 0.5 * UPG.armor)), x: x ?? S.squadX, z: z ?? 0, ph: rand(0, 6), walk: 1, bob: 0, kick: 0, spin: 0, pop: 0.01 });
   if (modelReady) soldierRig.color(slot, 1, TIERS[t].c);
 }
 function removeBody(i, fx) {
@@ -1198,7 +1274,7 @@ function syncBodies(fx) {
   soldiers.sort((p, q) => q.tier - p.tier);
 }
 function fusionFx(t) {
-  if (S.timer - S.fuseT < 0.6) return; S.fuseT = S.timer;
+  if (S.timer - S.fuseT < 0.6) return; S.fuseT = S.timer; buzz([30, 30, 60]);
   floatText('FUSION · ' + TIERS[t].name, S.squadX, 3.4, -1.5, 'gold');
   burst(S.squadX, 1.2, 0, C.yellow, 30, 6, 0.12);
   ring.position.set(S.squadX, 0.08, 0); ring.scale.setScalar(0.6); ring.material.opacity = 1; ring.material.color.copy(col(0xffd040));
@@ -1215,6 +1291,7 @@ function setPowerTo(np) {
 }
 function hitBody(i, dmg = 1) {
   const s = soldiers[i]; if (!s) return;
+  buzz(dmg > 2 ? 60 : 18);
   s.hp -= dmg; sfx.hurt(); S.shake = Math.max(S.shake, 0.15 + s.tier * 0.04);
   if (s.hp <= 0) { S.cnt[s.tier]--; removeBody(i, 'blood'); } else { burst(s.x, 1.2, s.z, C.red, 3, 2.5, 0.1); S.hurt = Math.min(1, S.hurt + 0.15); }
 }
@@ -1238,7 +1315,7 @@ function spawnZombie(x, z, hp, spd, H) {
 }
 function killZombie(i, scored) {
   const z = zombies[i];
-  if (scored) { S.score += 10; S.kills++; }
+  if (scored) { S.score += 10; S.kills++; addCoins(1); }
   burst(z.x, 1.1, z.z, C.blood, 9, 4.5, 0.13); burst(z.x, 1.2, z.z, C.gore, 4, 3, 0.11);
   addDecal(z.x, z.z - 0.4, rand(0.5, 1.0));
   sfx.splat();
@@ -1323,7 +1400,7 @@ function truckDie(k, crashed) {
   const t = trucks[k];
   explode(t.x, t.z, 0, 0.1); burst(t.x, 1.5, t.z, C.spark, 30, 9, 0.22); burst(t.x, 2, t.z, C.smoke, 16, 3, 0.6);
   sfx.boom(true); S.shake = 0.8; addDecal(t.x, t.z, 2.2);
-  if (!crashed) { S.score += 150; const H = { label: makeLabel(false), hp: 0, n: 0, x: 0, z: 0 }; hordes.push(H); for (let q = 0; q < 6 + S.level; q++) spawnZombie(clamp(t.x + rand(-1.5, 1.5), -HALF + 0.4, HALF - 0.4), t.z - rand(0, 2), 1 + S.level * 0.5, undefined, H); }
+  if (!crashed) { S.score += 150; addCoins(8 + S.level * 2); const H = { label: makeLabel(false), hp: 0, n: 0, x: 0, z: 0 }; hordes.push(H); for (let q = 0; q < 6 + S.level; q++) spawnZombie(clamp(t.x + rand(-1.5, 1.5), -HALF + 0.4, HALF - 0.4), t.z - rand(0, 2), 1 + S.level * 0.5, undefined, H); }
   scene.remove(t.g); dropLabel(t.label); trucks.splice(k, 1);
 }
 function spawnWall(i) {
@@ -1340,7 +1417,7 @@ function spawnWall(i) {
 function applyGate(h) {
   if (!h) return;
   const v = gateVal(h), n = power(); let nn;
-  if (h.type === 'add') nn = n + v; else if (h.type === 'mul') nn = n * v; else nn = Math.ceil(n / v);
+  if (h.type === 'add') nn = n + (v > 0 ? Math.round(v * (1 + 0.08 * UPG.gate)) : v); else if (h.type === 'mul') nn = n * v; else nn = Math.ceil(n / v);
   const good = nn >= n;
   const label = h.type === 'add' ? (v >= 0 ? '+' : '−') + Math.abs(v) : (h.type === 'mul' ? '×' : '÷') + v;
   floatText(label, S.squadX, 3, -1, good ? 'good' : 'bad');
@@ -1585,12 +1662,13 @@ function clearWorld() {
 function startLevel() {
   clearWorld();
   S.weapon = S.startWeapon; S.wtype = S.startWtype || 'rifle'; S.score = S.startScore; S.kills = 0;
-  setSquad(S.startSquad);
+  setSquad(S.startSquad + 2 * UPG.squad); S.runCoins = 0;
   S.events = buildLevel(S.level); S.evIdx = 0; S.bossAt = S.events[S.events.length - 1].at; S.levelDist = 0;
   S.state = 'play'; S.timer = 0;
   for (const id of ['scrMenu', 'scrOver', 'scrClear']) $(id).hidden = true;
   $('hud').hidden = false; $('tag').hidden = false;
   $('lvlTxt').textContent = 'NIVEAU ' + S.level;
+  setTimeout(() => music.start(), 50);
   setTheme(S.level % 2 === 0 ? 'desert' : 'bridge');
   audioInit();
 }
@@ -1606,6 +1684,7 @@ addEventListener('keyup', (e) => { keys[e.key] = false; });
 
 // ---------- boucle ----------
 function update(dt) {
+  if (S.state === 'pause') dt = 0;
   const st = S.state, playing = st === 'play';
   const tSpeed = playing ? (S.boss ? 0 : 8.5 + Math.min(S.level, 10) * 0.3) : st === 'menu' ? 4 : st === 'won' ? 2 : 0;
   S.speed += (tSpeed - S.speed) * Math.min(1, dt * 2.2);
@@ -1665,7 +1744,7 @@ function update(dt) {
   const W = WEAP[S.wtype];
   if (firing && n) {
     let rs = 0; for (let i = 0; i < n; i++) rs += rateMul(soldiers[i].tier);
-    const total = rs * W.rate, sps = Math.min(total, W.flame ? 70 : 90), k = total / sps, lm = lvlMul(), mz = muzzle();
+    const total = rs * W.rate * rateBonus(), sps = Math.min(total, W.flame ? 70 : 90), k = total / sps, lm = lvlMul(), mz = muzzle();
     S.fireAcc += sps * dt;
     while (S.fireAcc >= 1) {
       S.fireAcc -= 1;
@@ -1890,7 +1969,8 @@ function update(dt) {
   hud(dt);
 }
 const GRIDN = 80, grid = Array.from({ length: GRIDN }, () => []);
-let tBoomX = 0;
+let tBoomX = 0, tBuzz = 0;
+function buzz(p) { if (S.state !== 'play' && S.state !== 'won') return; const n = performance.now(); if (n - tBuzz < 90) return; tBuzz = n; try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
 function explode(x, z, dmg, r) {
   for (const q of zombies) if (q.alive && Math.hypot(q.x - x, q.z - z) < r) { q.hp -= dmg; q.hit = 0.06; if (q.hp <= 0) q.alive = false; }
   const bo = S.boss; if (bo && bo.hp > 0 && Math.abs(bo.x - x) < r + 1.5 && Math.abs(bo.z - z) < r + 1.5) { bo.hp -= dmg * 0.5; if (bo.hp <= 0) bossDie(); }
@@ -1907,14 +1987,14 @@ function bossDie() {
   for (let k = 0; k < 6; k++) addDecal(bo.x + rand(-2, 2), bo.z + rand(-2, 2), rand(0.8, 1.8));
   scene.remove(bo.g); dropLabel(bo.label); S.boss = null; $('bossBox').hidden = true;
   for (let i = zombies.length - 1; i >= 0; i--) killZombie(i, true);
-  S.score += 500 * S.level; sfx.boom(true); sfx.win(); S.shake = 1;
+  S.score += 500 * S.level; addCoins(40 + 20 * S.level); sfx.boom(true); sfx.win(); S.shake = 1; buzz([80, 40, 120]);
   floatText(BOSSES[bo.type].done, S.squadX, 4, -6, 'gold');
   S.state = 'won'; S.timer = 0;
 }
 
 let lastScore = -1, lastW = '', lastN = -1, lastC = '';
 function hud(dt) {
-  if (S.score !== lastScore) { lastScore = S.score; $('scoreTxt').textContent = S.score.toLocaleString('fr-FR'); }
+  if (S.score !== lastScore) { lastScore = S.score; $('scoreTxt').textContent = S.score.toLocaleString('fr-FR'); $('coinTxt').textContent = fmt(S.coins); }
   const wk = S.wtype + S.weapon; if (wk !== lastW) { lastW = wk; $('wpnTxt').textContent = S.weapon; $('wpnName').textContent = WEAP[S.wtype].short; }
   const ck = S.cnt.join(',') + S.extra; if (ck !== lastC) { lastC = ck; const box = $('comp'); box.textContent = ''; for (let t = 5; t >= 1; t--) if (S.cnt[t]) { const d = document.createElement('div'), i = document.createElement('i'); i.style.background = TIERS[t].css; d.append(i, TIERS[t].name + ' ×' + S.cnt[t]); box.appendChild(d); } }
   $('progBar').style.width = clamp(S.levelDist / S.bossAt * 100, 0, 100) + '%';
@@ -1932,7 +2012,8 @@ function hud(dt) {
 
 // ---------- écrans ----------
 function showOver() {
-  S.state = 'over';
+  music.stop();
+  S.state = 'over'; saveShop(); $('oCoins').textContent = '+' + (S.runCoins || 0);
   $('oLvl').textContent = S.level; $('oKills').textContent = S.kills; $('oScore').textContent = S.score.toLocaleString('fr-FR');
   S.best = Math.max(S.best, S.score); record(); save();
   $('oWho').textContent = S.pseudo;
@@ -1943,11 +2024,13 @@ function showClear() {
   $('cTitle').textContent = 'NIVEAU ' + S.level + ' TENU';
   $('cSquad').textContent = fmt(power()); $('cWpn').textContent = WEAP[S.wtype].short + ' ' + S.weapon; $('cScore').textContent = S.score.toLocaleString('fr-FR');
   record();
+  addCoins(15 + 10 * S.level); saveShop(); $('cCoins').textContent = '+' + S.runCoins;
   S.level++; S.startSquad = Math.max(6, power()); S.startWeapon = S.weapon; S.startWtype = S.wtype; S.startScore = S.score;
   S.best = Math.max(S.best, S.score); save();
   $('scrClear').hidden = false;
 }
 function showMenu() {
+  music.stop();
   S.state = 'menu'; clearWorld(); setTheme(S.level % 2 === 0 ? 'desert' : 'bridge');
   $('hud').hidden = true; $('tag').hidden = true; $('scrOver').hidden = true; $('scrClear').hidden = true; $('scrMenu').hidden = false;
   setSquad(S.menuSquad);
@@ -2069,7 +2152,7 @@ function needPseudo() {
   if (!v) { inp.classList.remove('err'); void inp.offsetWidth; inp.classList.add('err'); inp.focus(); return false; }
   S.pseudo = v; setPseudo(v); $('hudWho').textContent = v; inp.blur(); return true;
 }
-function newRun() { S.runId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); S.level = 1; S.startSquad = 6; S.startWeapon = 1; S.startWtype = 'rifle'; S.startScore = 0; save(); }
+function newRun() { S.runId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); S.level = 1; S.startSquad = 6; S.startWeapon = Math.min(10, 1 + UPG.arms); S.startWtype = 'rifle'; S.startScore = 0; save(); }
 $('playBtn').addEventListener('click', async () => { if (!needPseudo() || !(await ensurePseudoOnline())) return; if (!S.runId) newRun(); startLevel(); });
 $('newBtn').addEventListener('click', async () => { if (!needPseudo() || !(await ensurePseudoOnline())) return; newRun(); startLevel(); });
 $('friendsBtn').addEventListener('click', async () => { if (cleanPseudo($('pseudoIn').value) && needPseudo()) await ensurePseudoOnline(); showFriends(); });
@@ -2096,7 +2179,33 @@ $('boardBack').addEventListener('click', () => { $('scrBoard').hidden = true; $(
 $('retryBtn').addEventListener('click', startLevel);
 $('menuBtn').addEventListener('click', showMenu);
 $('nextBtn').addEventListener('click', startLevel);
-$('muteBtn').addEventListener('click', () => { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.5; $('muteBtn').textContent = muted ? 'MUET' : 'SON'; });
+function renderShop() {
+  $('shopCoins').textContent = fmt(S.coins);
+  const box = $('shopList'); box.textContent = '';
+  for (const u of SHOP) {
+    const c = document.createElement('div'); c.className = 'card';
+    const h = document.createElement('h3'); h.textContent = u.name;
+    const d = document.createElement('p'); d.textContent = u.desc;
+    const pips = document.createElement('div'); pips.className = 'pips';
+    for (let k = 0; k < u.max; k++) { const sp = document.createElement('span'); if (k < UPG[u.id]) sp.className = 'on'; pips.appendChild(sp); }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'buy';
+    if (UPG[u.id] >= u.max) { b.textContent = 'MAXIMUM'; b.disabled = true; }
+    else { const cost = upCost(u); b.textContent = fmt(cost) + ' PIÈCES'; b.disabled = S.coins < cost; b.addEventListener('click', () => { if (S.coins < cost) return; S.coins -= cost; UPG[u.id]++; saveShop(); sfx.win(); renderShop(); }); }
+    c.append(h, d, pips, b); box.appendChild(c);
+  }
+}
+let shopFrom = 'scrMenu';
+function openShop(from) { audioInit(); shopFrom = from; $(from).hidden = true; $('scrShop').hidden = false; renderShop(); }
+$('shopBtn').addEventListener('click', () => openShop('scrMenu'));
+$('shopBtn2').addEventListener('click', () => openShop('scrClear'));
+$('shopBack').addEventListener('click', () => { $('scrShop').hidden = true; $(shopFrom).hidden = false; });
+function pauseGame() { if (S.state !== 'play') return; S.state = 'pause'; $('scrPause').hidden = false; music.stop(); }
+function resumeGame() { if (S.state !== 'pause') return; S.state = 'play'; $('scrPause').hidden = true; audioInit(); music.start(); }
+$('pauseBtn').addEventListener('click', pauseGame);
+$('resumeBtn').addEventListener('click', resumeGame);
+$('quitBtn').addEventListener('click', () => { $('scrPause').hidden = true; saveShop(); showMenu(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+$('muteBtn').addEventListener('click', () => { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.5; $('muteBtn').textContent = muted ? 'MUET' : 'SON'; if (muted) music.stop(); else if (S.state === 'play') music.start(); });
 
 // ---------- redimensionnement / perf ----------
 function resize() {
@@ -2137,7 +2246,7 @@ function boot(data) {
   const sv = load() || {};
   const src = data && data.level ? data : sv;
   if (src.level) { S.level = src.level; S.startSquad = src.squad || 6; S.startWeapon = src.weapon || 1; S.startWtype = WEAP[src.wtype] ? src.wtype : 'rifle'; S.startScore = src.score || 0; }
-  S.best = sv.best || 0; S.runId = sv.runId || (src.level > 1 ? 'old' : ''); S.pseudo = getPseudo(); $('hudWho').textContent = S.pseudo;
+  loadShop(); S.best = sv.best || 0; S.runId = sv.runId || (src.level > 1 ? 'old' : ''); S.pseudo = getPseudo(); $('hudWho').textContent = S.pseudo;
   resize(); showMenu();
   const pb = $('playBtn'), label = pb.textContent; pb.disabled = true; pb.textContent = 'CHARGEMENT…';
   const done = () => { pb.disabled = false; pb.textContent = label; };
