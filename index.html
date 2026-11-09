@@ -259,7 +259,7 @@ const sun = new THREE.DirectionalLight(0xffd2a0, 2.1);
 sun.castShadow = true;
 const BIG = Math.max(screen.width, screen.height) > 1000 && !('ontouchstart' in window);
 sun.shadow.mapSize.set(BIG ? 2048 : 1024, BIG ? 2048 : 1024);
-Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 34, bottom: -34, near: 1, far: 90 });
+Object.assign(sun.shadow.camera, { left: -24, right: 15, top: 34, bottom: -34, near: 1, far: 90 });
 sun.shadow.bias = -0.0008;
 scene.add(sun, sun.target);
 const fill = new THREE.DirectionalLight(0x9db4ff, 0.55);
@@ -402,7 +402,7 @@ for (let i = 0; i < 240; i++) {
 // ---------- personnages instanciés ----------
 const M4 = new THREE.Matrix4(), L4 = new THREE.Matrix4(), B4 = new THREE.Matrix4();
 const V3 = new THREE.Vector3(), S3 = new THREE.Vector3(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
-const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0), EU = new THREE.Euler();
 class Rig {
   constructor(max, parts) {
     this.max = max; this.hi = 0; this.free = []; for (let i = max - 1; i >= 0; i--) this.free.push(i);
@@ -417,9 +417,9 @@ class Rig {
   alloc() { if (!this.free.length) return -1; this.free.sort((a, b) => b - a); return this.free.pop(); }
   release(slot) { for (const p of this.parts) for (let k = 0; k < p.n; k++) p.mesh.setMatrixAt(slot * p.n + k, ZERO); this.free.push(slot); }
   color(slot, part, c) { const p = this.parts[part]; for (let k = 0; k < p.n; k++) p.mesh.setColorAt(slot * p.n + k, c); p.mesh.instanceColor.needsUpdate = true; }
-  set(slot, x, y, z, ry, s, ent) {
+  set(slot, x, y, z, ry, s, ent, pitch = 0) {
     if (slot + 1 > this.hi) this.hi = slot + 1;
-    B4.compose(V3.set(x, y, z), Q.setFromAxisAngle(UP, ry), S3.set(s, s, s));
+    B4.compose(V3.set(x, y, z), pitch ? Q.setFromEuler(EU.set(pitch, ry, 0, 'YXZ')) : Q.setFromAxisAngle(UP, ry), S3.set(s, s, s));
     for (const p of this.parts) for (let k = 0; k < p.n; k++) { p.local(ent, k, L4); M4.multiplyMatrices(B4, L4); p.mesh.setMatrixAt(slot * p.n + k, M4); }
   }
   flush() { for (const p of this.parts) { p.mesh.count = this.hi * p.n; p.mesh.instanceMatrix.needsUpdate = true; } this.hi = 0; }
@@ -459,7 +459,15 @@ const Sp = (r, a = 12, b = 10) => new THREE.SphereGeometry(r, a, b);
 const Cy = (r1, r2, h, s = 12) => new THREE.CylinderGeometry(r1, r2, h, s);
 const rx = (m, a, x, y, z) => { m.makeRotationX(a); m.setPosition(x, y, z); return m; };
 const std = (h, r = 0.75, m = 0) => new THREE.MeshStandardMaterial({ color: col(h), roughness: r, metalness: m });
-const vmat = (r, m = 0) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: r, metalness: m });
+function rim(m, hex, str = 0.6, pw = 2.6) {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.rimC = { value: col(hex).multiplyScalar(str) };
+    sh.fragmentShader = 'uniform vec3 rimC;\n' + sh.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+      'outgoingLight += rimC * pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), ' + pw.toFixed(1) + ');\ngl_FragColor = vec4( outgoingLight, diffuseColor.a );');
+  };
+  return m;
+}
+const vmat = (r, m = 0, rc = 0) => rc ? rim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: r, metalness: m }), rc) : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: r, metalness: m });
 
 // soldat : uniforme bleu, gilet tactique, sac de munitions, minigun
 const BLU = 0x4b6bd6, BLD = 0x30479a, VST = 0x2a2d33, OLV = 0x4c5238, BLK = 0x18191c, SKN = 0xc98d68, HLM = 0x3a4230, BRS = 0xc9a048, TAN = 0x8a7a5a;
@@ -526,8 +534,8 @@ const solBarrels = (() => {
   return merge(L);
 })();
 const soldierRig = new Rig(MAXS, [
-  { geo: solLeg, mat: vmat(0.8), n: 2, local: (e, k, m) => rx(m, Math.sin(e.ph + k * Math.PI) * 0.75 * e.walk, k ? 0.11 : -0.11, 0.9, 0) },
-  { geo: solUpper, mat: vmat(0.7, 0.05), n: 1, local: (e, k, m) => m.makeTranslation(0, e.bob - 0.02, 0) },
+  { geo: solLeg, mat: vmat(0.8, 0, 0xffd2a0), n: 2, local: (e, k, m) => rx(m, Math.sin(e.ph + k * Math.PI) * 0.75 * e.walk, k ? 0.11 : -0.11, 0.9, 0) },
+  { geo: solUpper, mat: vmat(0.7, 0.05, 0xffd2a0), n: 1, local: (e, k, m) => m.makeTranslation(0, e.bob - 0.02, 0) },
   { geo: solGun, mat: vmat(0.35, 0.75), n: 1, local: (e, k, m) => m.makeTranslation(0, e.bob - 0.02 - e.kick * 0.02, e.kick * 0.05) },
   { geo: solBarrels, mat: vmat(0.3, 0.85), n: 1, local: (e, k, m) => { m.makeRotationZ(e.spin); m.setPosition(0.06, 1.18 + e.bob, -1.06 + e.kick * 0.05); return m; } },
   { geo: Bx(0.3, 0.03, 0.012), mat: new THREE.MeshBasicMaterial({ color: col(0x5ff2ff), toneMapped: false }), n: 1, local: (e, k, m) => m.makeTranslation(0, 1.4 + e.bob - 0.02, 0.379) }
@@ -573,10 +581,10 @@ const zArm = merge([
 const zEyes = merge([P(Sp(0.022, 6, 4), 0xff3a1a, [0.055, 0.02, -0.14]), P(Sp(0.022, 6, 4), 0xff3a1a, [-0.055, 0.02, -0.14])]);
 const zHeadLocal = (e, m) => { m.makeRotationZ(Math.sin(e.ph * 0.5) * 0.25 + e.tilt); m.setPosition(0, 1.58, -0.26); return m; };
 const zombieRig = new Rig(MAXZ, [
-  { geo: zLeg, mat: vmat(0.9), n: 2, colored: true, local: (e, k, m) => rx(m, Math.sin(e.ph + k * Math.PI) * 0.55, k ? 0.11 : -0.11, 0.86, 0) },
-  { geo: zTorso, mat: vmat(0.9), n: 1, colored: true, local: (e, k, m) => rx(m, 0.35, 0, 1.2 + Math.abs(Math.sin(e.ph)) * 0.04, -0.07) },
-  { geo: zHead, mat: vmat(0.75), n: 1, colored: true, local: (e, k, m) => zHeadLocal(e, m) },
-  { geo: zArm, mat: vmat(0.8), n: 2, colored: true, local: (e, k, m) => rx(m, 1.5 + Math.sin(e.ph * 0.9 + k * 2) * 0.18, k ? 0.27 : -0.27, 1.4, -0.14) },
+  { geo: zLeg, mat: vmat(0.9, 0, 0xffa070), n: 2, colored: true, local: (e, k, m) => rx(m, Math.sin(e.ph + k * Math.PI) * 0.55, k ? 0.11 : -0.11, 0.86, 0) },
+  { geo: zTorso, mat: vmat(0.9, 0, 0xffa070), n: 1, colored: true, local: (e, k, m) => rx(m, 0.35, 0, 1.2 + Math.abs(Math.sin(e.ph)) * 0.04, -0.07) },
+  { geo: zHead, mat: vmat(0.75, 0, 0xffa070), n: 1, colored: true, local: (e, k, m) => zHeadLocal(e, m) },
+  { geo: zArm, mat: vmat(0.8, 0, 0xffa070), n: 2, colored: true, local: (e, k, m) => rx(m, 1.5 + Math.sin(e.ph * 0.9 + k * 2) * 0.18, k ? 0.27 : -0.27, 1.4, -0.14) },
   { geo: zEyes, mat: new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, toneMapped: false }), n: 1, local: (e, k, m) => zHeadLocal(e, m) }
 ]);
 
@@ -593,7 +601,7 @@ const decalMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 14).rotate
 decalMesh.frustumCulled = false; scene.add(decalMesh);
 const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(0xff9a4a), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
 ring.position.y = 0.08; scene.add(ring);
-const C = { blood: col(0x6e0c0a), blood2: col(0x9c1a12), gore: col(0x56602e), spark: col(0xffc860), red: col(0xd01818), cyan: col(0x7fdcff), purple: col(0xb050ff), yellow: col(0xffd62e), teal: col(0x40e0b0), smoke: col(0x5a544e), white: col(0xffffff) };
+const C = { blood: col(0x6e0c0a), blood2: col(0x9c1a12), gore: col(0x56602e), spark: col(0xffc860), red: col(0xd01818), cyan: col(0x7fdcff), purple: col(0xb050ff), yellow: col(0xffd62e), teal: col(0x40e0b0), brass: col(0xe0b040), smoke: col(0x5a544e), white: col(0xffffff) };
 const BULLETC = [0xffd877, 0xffd877, 0xffb35a, 0xffe36a, 0x9ff0ff, 0x9ff0ff, 0xa6ffb0, 0xff9cf2, 0xff9cf2, 0xffffff, 0xffffff].map((h) => new THREE.Color(h));
 
 // ---------- audio ----------
@@ -653,7 +661,64 @@ for (let i = 0; i < 7; i++) {
   fire.scale.set(16, 12, 1); scene.add(fire);
   plumes.push({ sm, fire, x: (i % 2 ? 1 : -1) * rand(32, 85), z: -40 - i * 38, h, ph: rand(0, 6) });
 }
+// deuxième voie à gauche : épaves de voitures en feu, brume
+const road2 = new THREE.Mesh(new THREE.PlaneGeometry(11, ROADLEN), road.material);
+road2.rotation.x = -Math.PI / 2; road2.position.set(-13.2, 0.001, road.position.z); road2.receiveShadow = true; scene.add(road2);
+const deck2 = new THREE.Mesh(new THREE.BoxGeometry(12, 1.6, ROADLEN), concrete); deck2.position.set(-13.2, -0.81, road.position.z); deck2.receiveShadow = true; scene.add(deck2);
+const jersey = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.85, ROADLEN), concrete); jersey.position.set(-7.4, 0.42, road.position.z); jersey.castShadow = jersey.receiveShadow = true; scene.add(jersey);
+const rail2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, ROADLEN), metal); rail2.position.set(-18.9, 1.1, road.position.z); scene.add(rail2);
+const carGeo = merge([
+  P(Bx(1.9, 0.62, 4.3), 0xffffff, [0, 0.62, 0]),
+  P(Bx(1.94, 0.18, 4.36), 0x9a9a9a, [0, 0.36, 0]),
+  P(Bx(1.62, 0.56, 2.2), 0xdddddd, [0, 1.2, 0.25]),
+  P(Bx(1.66, 0.42, 1.9), 0x0e1012, [0, 1.2, 0.25]),
+  P(Bx(1.4, 0.36, 2.24), 0x0e1012, [0, 1.18, 0.25]),
+  P(Bx(1.7, 0.1, 0.9), 0x5a3a24, [0, 0.95, -1.4]),
+  P(Bx(0.36, 0.14, 0.05), 0xe8e0c8, [-0.62, 0.68, -2.16]), P(Bx(0.36, 0.14, 0.05), 0xe8e0c8, [0.62, 0.68, -2.16]),
+  P(Bx(0.36, 0.12, 0.05), 0x7a1010, [-0.62, 0.7, 2.16]), P(Bx(0.36, 0.12, 0.05), 0x7a1010, [0.62, 0.7, 2.16]),
+  ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => P(Cy(0.36, 0.36, 0.26, 14), 0x161616, [sx * 0.9, 0.36, sz * 1.4], [0, 0, Math.PI / 2]))
+]);
+const CARC = [0x6a2620, 0x2a3c58, 0x7a7a72, 0x3e4a34, 0x2b2b2e, 0x8a6a3a, 0x3a3a3c].map(col);
+const CARN = 14, cars = new THREE.InstancedMesh(carGeo, rim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35 }), 0xffb080, 0.35), CARN);
+cars.castShadow = cars.receiveShadow = true; cars.frustumCulled = false; scene.add(cars);
+const carBase = [];
+const fireMat = new THREE.SpriteMaterial({ map: glowTex('rgba(255,230,160,1)', 'rgba(255,100,20,0.6)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+const flameTex = (() => {
+  const [c, g] = cv(64, 128);
+  const gr = g.createRadialGradient(32, 100, 2, 32, 90, 60); gr.addColorStop(0, 'rgba(255,250,210,1)'); gr.addColorStop(0.25, 'rgba(255,170,60,0.9)'); gr.addColorStop(0.6, 'rgba(220,60,10,0.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.beginPath(); g.moveTo(32, 0); g.bezierCurveTo(70, 50, 64, 128, 32, 128); g.bezierCurveTo(0, 128, -6, 50, 32, 0); g.fill();
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+})();
+const groundGlow = new THREE.MeshBasicMaterial({ map: glowTex('rgba(255,150,60,0.7)', 'rgba(255,90,20,0.25)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+const smallSmoke = new THREE.SpriteMaterial({ map: smokeT, transparent: true, depthWrite: false, opacity: 0.85 });
+for (let i = 0; i < CARN; i++) {
+  const b = { x: rand(-17.2, -9.2), z: RMIN + i * (ROADLEN / CARN) + rand(-5, 5), ry: rand(-0.8, 0.8) + (Math.random() < 0.3 ? Math.PI / 2 : 0), roll: Math.random() < 0.12 ? Math.PI : 0, burn: Math.random() < 0.55, fl: [] };
+  cars.setColorAt(i, CARC[i % CARC.length].clone().multiplyScalar(b.burn ? 0.45 : 1));
+  if (b.burn) {
+    for (let k = 0; k < 3; k++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); scene.add(f); b.fl.push(f); }
+    b.glow = new THREE.Mesh(new THREE.PlaneGeometry(9, 9).rotateX(-Math.PI / 2), groundGlow); scene.add(b.glow);
+    b.smoke = new THREE.Sprite(smallSmoke); b.smoke.scale.set(9, 18, 1); scene.add(b.smoke);
+  }
+  carBase.push(b);
+}
+const mistMat = new THREE.SpriteMaterial({ map: glowTex('rgba(215,185,160,0.55)', 'rgba(200,170,150,0.25)'), transparent: true, depthWrite: false, opacity: 0.5 });
+const mists = [];
+for (let i = 0; i < 9; i++) { const m = new THREE.Sprite(mistMat); m.scale.set(rand(26, 40), rand(5, 8), 1); scene.add(m); mists.push({ m, x: rand(-16, 10), z: -30 - i * 13, y: rand(1, 2.5) }); }
+function wrecks(dt, dz) {
+  const T = S.timer;
+  for (let i = 0; i < CARN; i++) {
+    const b = carBase[i], z = wrapZ(b.z + S.scroll, RMIN, ROADLEN);
+    M4.compose(V3.set(b.x, b.roll ? 1.65 : 0, z), Q.setFromEuler(EU.set(0, b.ry, b.roll, 'YXZ')), S3.set(1, 1, 1)); cars.setMatrixAt(i, M4);
+    if (b.burn) {
+      b.fl.forEach((f, k) => { const h = 2.6 + Math.sin(T * 11 + k * 2 + i) * 0.4 + Math.random() * 0.4; f.scale.set(1.6 + k * 0.3, h, 1); f.position.set(b.x + (k - 1) * 0.6, 1.2 + h * 0.4, z + (k - 1) * 0.5); });
+      b.glow.position.set(b.x, 0.03, z); b.smoke.position.set(b.x + 1, 2.4 + 9, z - 1);
+    }
+  }
+  cars.instanceMatrix.needsUpdate = true;
+  for (const m of mists) { m.z += dz + dt * 0.6; if (m.z > 6) m.z -= 120; m.m.position.set(m.x + Math.sin(T * 0.2 + m.z) * 2, m.y, m.z); }
+}
 function atmos(dt, dz) {
+  wrecks(dt, dz);
   const T = S.timer;
   for (let i = 0; i < EMBN; i++) {
     const v = embV[i], k = i * 3;
@@ -770,17 +835,22 @@ function spawnZombie(x, z, hp, spd) {
   const slot = zombieRig.alloc(); if (slot < 0) return;
   const e = { slot, x, z, hp, ph: rand(0, 6), spd: spd ?? rand(1.4, 2.8) + S.level * 0.08, s: rand(0.88, 1.06), tilt: rand(-0.3, 0.3), off: rand(-1, 1), alive: true };
   zombies.push(e);
-  zombieRig.color(slot, 0, pick(PANTS)); zombieRig.color(slot, 1, pick(SHIRTS));
-  const sk = pick(SKINS); zombieRig.color(slot, 2, sk); zombieRig.color(slot, 3, sk);
+  e.cP = pick(PANTS); e.cS = pick(SHIRTS); e.cK = pick(SKINS);
+  zombieRig.color(slot, 0, e.cP); zombieRig.color(slot, 1, e.cS); zombieRig.color(slot, 2, e.cK); zombieRig.color(slot, 3, e.cK);
 }
 function killZombie(i, scored) {
   const z = zombies[i];
   if (scored) { S.score += 10; S.kills++; }
   burst(z.x, 1.1, z.z, C.blood, 9, 4.5, 0.13); burst(z.x, 1.2, z.z, C.gore, 4, 3, 0.11);
-  if (Math.random() < 0.5) addDecal(z.x, z.z, rand(0.4, 0.9));
+  addDecal(z.x, z.z - 0.4, rand(0.5, 1.0));
   sfx.splat();
-  zombieRig.release(z.slot); zombies.splice(i, 1);
+  zombies.splice(i, 1);
+  if (z.fl) { zombieRig.color(z.slot, 1, z.cS); zombieRig.color(z.slot, 2, z.cK); }
+  z.t = 0; z.ry = Math.PI + rand(-0.5, 0.5); z.dir = Math.random() < 0.7 ? -1 : 1;
+  corpses.push(z);
+  if (corpses.length > 110) zombieRig.release(corpses.shift().slot);
 }
+const corpses = [], FLASHC = new THREE.Color(2.4, 2.1, 1.9);
 function hordeSize(i, m) { return Math.round((3 + S.level * 2.6 + i * 1.3 + Math.min(soldiers.length, 140) * 0.45) * m); }
 function spawnHorde(count, i) {
   const r = Math.random(); let cx, wid;
@@ -891,7 +961,7 @@ function destroyBarrel(i) {
 
 // ---------- boss ----------
 function makeBoss() {
-  const g = new THREE.Group(), mat = vmat(0.75, 0.02);
+  const g = new THREE.Group(), mat = vmat(0.75, 0.02, 0xff8a60);
   const SK = 0x6c7d5c, SK2 = 0x5a6a4c, FL = 0x8a2f28, BN = 0xd8cfb8, PA = 0x2f2a24, DK = 0x3c4a33;
   const mk = (geo, parent = g, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const legGeo = merge([
@@ -990,6 +1060,7 @@ function spawnEvent(ev) {
 }
 function clearWorld() {
   while (zombies.length) { zombieRig.release(zombies[zombies.length - 1].slot); zombies.pop(); }
+  while (corpses.length) zombieRig.release(corpses.pop().slot);
   for (const g of gates) scene.remove(g.group); gates.length = 0;
   for (const b of barrels) scene.remove(b.g); barrels.length = 0;
   if (S.boss) { scene.remove(S.boss.g); S.boss = null; }
@@ -1074,7 +1145,7 @@ function update(dt) {
     s.ph += dt * (4 + v * 0.9); s.bob = Math.abs(Math.sin(s.ph)) * 0.05 * s.walk;
     s.kick = firing ? Math.random() : 0; s.spin += dt * (firing ? 30 : 0);
     s.pop = Math.min(1, s.pop + dt * 5);
-    soldierRig.set(s.slot, s.x, 0, s.z, 0, 0.86 * (0.4 + 0.6 * s.pop), s);
+    soldierRig.set(s.slot, s.x, 0, s.z, 0, 0.95 * (0.4 + 0.6 * s.pop), s);
   }
   soldierRig.flush();
 
@@ -1086,13 +1157,14 @@ function update(dt) {
     while (S.fireAcc >= 1) {
       S.fireAcc -= 1;
       const s = soldiers[(S.fireIdx++) % n];
-      if (bullets.length < MAXB) bullets.push({ x: s.x + 0.05 + rand(-0.04, 0.04), y: 1.02, z: s.z - 1.15, dmg, life: 1.5 });
+      if (bullets.length < MAXB) bullets.push({ x: s.x + 0.06 + rand(-0.04, 0.04), y: 1.12, z: s.z - 1.28, dmg, life: 1.5 });
+      if (Math.random() < 0.35 && parts.length < MAXP) parts.push({ x: s.x + 0.2, y: 1.15, z: s.z - 0.45, vx: rand(2, 3.5), vy: rand(2, 3.2), vz: rand(-0.5, 0.8), life: 0.7, max: 0.7, size: 0.07, c: C.brass });
     }
     sfx.shot();
     for (let i = 0; i < n; i++) {
       if (Math.random() < 0.55) {
         const s = soldiers[i], sc = rand(0.45, 0.85);
-        M4.compose(V3.set(s.x + 0.05, 1.02, s.z - 1.22), camera.quaternion, S3.set(sc, sc, sc)); flashMesh.setMatrixAt(fc++, M4);
+        M4.compose(V3.set(s.x + 0.06, 1.12, s.z - 1.35), camera.quaternion, S3.set(sc, sc, sc)); flashMesh.setMatrixAt(fc++, M4);
       }
     }
   }
@@ -1140,7 +1212,7 @@ function update(dt) {
           const z = zombies[cell[q]];
           if (!z || !z.alive) continue;
           if (Math.abs(z.x - b.x) < 0.46 && z.z > b.z - 0.45 && z.z < pz + 0.45) {
-            z.hp -= b.dmg; z.z -= 0.12; hit = true;
+            z.hp -= b.dmg; z.z -= 0.12; z.hit = 0.06; hit = true;
             if (Math.random() < 0.35) burst(z.x, 1.2, z.z + 0.2, C.blood2, 1, 2.5, 0.09);
             if (z.hp <= 0) z.alive = false;
             break outer;
@@ -1168,7 +1240,15 @@ function update(dt) {
       if (best >= 0) { killSoldier(best); sfx.hurt(); S.shake = Math.max(S.shake, 0.18); killZombie(i, false); continue; }
     }
     if (z.z > 14) { zombieRig.release(z.slot); zombies.splice(i, 1); continue; }
+    if (z.hit > 0) { z.hit -= dt; if (!z.fl) { z.fl = true; zombieRig.color(z.slot, 1, FLASHC); zombieRig.color(z.slot, 2, FLASHC); } }
+    else if (z.fl) { z.fl = false; zombieRig.color(z.slot, 1, z.cS); zombieRig.color(z.slot, 2, z.cK); }
     zombieRig.set(z.slot, z.x, 0, z.z, Math.PI + Math.sin(z.ph * 0.5) * 0.12, z.s, z);
+  }
+  for (let i = corpses.length - 1; i >= 0; i--) {
+    const c = corpses[i]; c.t += dt; c.z += dz;
+    if (c.t > 2.4 || c.z > 16) { zombieRig.release(c.slot); corpses.splice(i, 1); continue; }
+    const f = Math.min(1, c.t / 0.38), pitch = c.dir * f * f * 1.5, y = c.t > 1.3 ? -(c.t - 1.3) * 0.7 : 0;
+    zombieRig.set(c.slot, c.x, y, c.z, c.ry, c.s, c, pitch);
   }
   zombieRig.flush();
 
@@ -1344,7 +1424,7 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = a; camera.fov = a < 1 ? 60 : 50;
   const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  camDist = Math.max(19, 7.3 / (t * a) * 0.9);
+  camDist = Math.max(16, 7.3 / (t * a) * 0.78);
   camera.updateProjectionMatrix();
   if (composer) { composer.setPixelRatio(PR); composer.setSize(w, h); gradePass.uniforms.res.value.set(w * PR, h * PR); }
   scene.fog.near = camDist + 25; scene.fog.far = camDist + 170;
