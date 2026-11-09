@@ -104,6 +104,18 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 .row.me { background: rgba(255,207,63,.18); outline: 1px solid rgba(255,207,63,.5); }
 .row:nth-child(1) b { color: var(--gold); }
 .empty { color: var(--ink-dim); font-size: 17px; }
+.row5 { grid-template-columns: 34px 1fr auto 70px 30px; }
+.rm { width: 30px; height: 30px; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.35); color: var(--ink); font-size: 14px; cursor: pointer; }
+.rm:disabled { visibility: hidden; }
+.tabs { display: flex; gap: 6px; }
+.tab { font: 700 16px var(--f-body); letter-spacing: .16em; color: var(--ink-dim); background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.2); border-radius: 4px; padding: 8px 18px; cursor: pointer; }
+.tab.on { color: #1a1208; background: var(--gold); border-color: var(--gold); }
+.addf { display: flex; gap: 8px; width: min(92vw, 380px); }
+.addf input { flex: 1; min-width: 0; font: 400 18px var(--f-display); letter-spacing: .05em; text-transform: uppercase; color: var(--ink); background: rgba(0,0,0,.5); border: 2px solid rgba(255,207,63,.55); border-radius: 6px; padding: 8px 10px; outline: none; }
+.addf input:focus { border-color: var(--gold); }
+.btn.small { min-width: 0; font-size: 17px; padding: 10px 14px; }
+.onmsg { min-height: 20px; font-size: 16px; color: var(--toxic); max-width: 34ch; }
+.onmsg.bad { color: #ff8a7a; }
 .chip { display: inline-block; padding: 1px 7px; border-radius: 3px; font-weight: 800; color: #fff; }
 .chip.b { background: #2a86d6; } .chip.r { background: #c8352b; } .chip.p { background: #8d3cff; }
 #err { position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 20px; background: var(--night); }
@@ -136,18 +148,30 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
   <div class="pseudo">
     <label for="pseudoIn">TON PSEUDO</label>
     <input id="pseudoIn" type="text" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ex. CHASSEUR">
+    <div class="onmsg bad" id="pseudoMsg" role="status"></div>
   </div>
   <div class="btns">
     <button class="btn" id="playBtn" type="button">JOUER</button>
     <button class="btn ghost" id="newBtn" type="button" hidden>NOUVELLE PARTIE</button>
-    <button class="btn ghost" id="boardBtn" type="button">CLASSEMENT</button>
+    <button class="btn ghost" id="friendsBtn" type="button">AMIS EN LIGNE</button>
+    <button class="btn ghost" id="boardBtn" type="button">MES PARTIES</button>
   </div>
   <div class="hint" id="bestTxt"></div>
 </section>
 
+<section class="screen" id="scrFriends" hidden>
+  <div class="eyebrow">COMPARE TES SCORES</div>
+  <h2>AMIS EN LIGNE</h2>
+  <div class="tabs" role="tablist"><button class="tab on" id="tabFriends" type="button">AMIS</button><button class="tab" id="tabWorld" type="button">MONDE</button></div>
+  <div class="addf" id="addBox"><input id="friendIn" type="text" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="PSEUDO DE TON AMI"><button class="btn small" id="addBtn" type="button">AJOUTER</button></div>
+  <div class="onmsg" id="onMsg" role="status"></div>
+  <div class="board" id="friendList"></div>
+  <div class="btns"><button class="btn ghost" id="friendsBack" type="button">RETOUR</button></div>
+</section>
+
 <section class="screen" id="scrBoard" hidden>
   <div class="eyebrow">MEILLEURS SURVIVANTS</div>
-  <h2>CLASSEMENT</h2>
+  <h2>MES PARTIES</h2>
   <div class="board" id="boardList"></div>
   <div class="btns"><button class="btn ghost" id="boardBack" type="button">RETOUR</button></div>
 </section>
@@ -189,6 +213,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="soldier-model.js"></script>
+<script src="firebase-config.js"></script>
 <script>
 (function () {
 'use strict';
@@ -1137,6 +1162,7 @@ const getPseudo = () => { try { return localStorage.getItem('pdm-pseudo') || '';
 const setPseudo = (v) => { try { localStorage.setItem('pdm-pseudo', v); } catch (e) {} };
 function loadBoard() { try { return JSON.parse(localStorage.getItem('pdm-board') || '[]'); } catch (e) { return []; } }
 function record() {
+  pushScore();
   if (!S.runId || S.score <= 0) return;
   const list = loadBoard().filter((r) => r.id !== S.runId);
   list.push({ id: S.runId, name: S.pseudo || 'ANONYME', score: S.score, level: S.level, t: Date.now() });
@@ -1931,14 +1957,126 @@ function showMenu() {
   $('bestTxt').textContent = S.best ? 'Record : ' + S.best.toLocaleString('fr-FR') : '';
   $('pseudoIn').value = S.pseudo;
 }
+// ---------- en ligne : amis et classement (Firebase) ----------
+const ON = { ok: false, db: null, uid: null, me: null, tab: 'friends', why: '' };
+const FBV = 'https://cdn.jsdelivr.net/npm/firebase@10.12.2/';
+const cleanPseudo = (v) => (v || '').toUpperCase().replace(/[^A-Z0-9 _\-ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14);
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]); }
+async function onlineInit() {
+  const cfg = window.PDM_FIREBASE;
+  if (!cfg || !cfg.apiKey) { ON.why = 'config'; return; }
+  try {
+    if (!window.firebase) { await loadScript(FBV + 'firebase-app-compat.js'); await Promise.all([loadScript(FBV + 'firebase-auth-compat.js'), loadScript(FBV + 'firebase-firestore-compat.js')]); }
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    const auth = firebase.auth();
+    if (!auth.currentUser) await withTimeout(auth.signInAnonymously(), 12000);
+    ON.uid = auth.currentUser.uid; ON.db = firebase.firestore();
+    const d = await withTimeout(ON.db.collection('players').doc(ON.uid).get(), 12000);
+    ON.me = d.exists ? d.data() : null; ON.ok = true; ON.why = '';
+    if (ON.me && S.best < (ON.me.best || 0)) S.best = ON.me.best;
+    if (S.pseudo && (!ON.me || ON.me.pseudo !== S.pseudo)) await claimPseudo(S.pseudo).catch(() => {});
+  } catch (e) { console.warn('classement en ligne indisponible', e); ON.ok = false; ON.why = 'net'; }
+}
+async function claimPseudo(p) {
+  const db = ON.db, ref = db.collection('pseudos').doc(p), meRef = db.collection('players').doc(ON.uid);
+  const prev = ON.me && ON.me.pseudo;
+  await db.runTransaction(async (tx) => {
+    const d = await tx.get(ref), m = await tx.get(meRef);
+    if (d.exists && d.data().uid !== ON.uid) throw new Error('taken');
+    if (!d.exists) tx.set(ref, { uid: ON.uid });
+    const o = m.exists ? m.data() : {};
+    tx.set(meRef, { pseudo: p, best: Math.floor(Math.max(o.best || 0, S.best || 0)), level: Math.floor(Math.max(o.level || 1, S.level || 1)), friends: o.friends || [], updated: firebase.firestore.FieldValue.serverTimestamp() });
+  });
+  if (prev && prev !== p) db.collection('pseudos').doc(prev).delete().catch(() => {});
+  const m = await meRef.get(); ON.me = m.data();
+}
+async function ensurePseudoOnline() {
+  if (!ON.ok || (ON.me && ON.me.pseudo === S.pseudo)) return true;
+  try { await withTimeout(claimPseudo(S.pseudo), 8000); return true; }
+  catch (e) {
+    if (e.message === 'taken') { const inp = $('pseudoIn'); inp.classList.remove('err'); void inp.offsetWidth; inp.classList.add('err'); $('pseudoMsg').textContent = 'Ce pseudo est déjà pris en ligne. Choisis-en un autre.'; return false; }
+    return true;
+  }
+}
+function pushScore() {
+  if (!ON.ok || !ON.me) return;
+  const best = Math.floor(Math.max(ON.me.best || 0, S.score)), level = Math.floor(Math.max(ON.me.level || 1, S.level));
+  if (best === ON.me.best && level === ON.me.level) return;
+  ON.me.best = best; ON.me.level = level;
+  ON.db.collection('players').doc(ON.uid).set({ pseudo: ON.me.pseudo, best, level, friends: ON.me.friends || [], updated: firebase.firestore.FieldValue.serverTimestamp() }).catch((e) => console.warn(e));
+}
+function onMsg(t, bad) { const m = $('onMsg'); m.textContent = t; m.className = 'onmsg' + (bad ? ' bad' : ''); }
+async function addFriend() {
+  const inp = $('friendIn'), p = cleanPseudo(inp.value);
+  if (!ON.ok) return onMsg('Le classement en ligne n\'est pas disponible.', true);
+  if (!p) return onMsg('Tape le pseudo de ton ami.', true);
+  if (p === S.pseudo) return onMsg('C\'est ton propre pseudo.', true);
+  $('addBtn').disabled = true;
+  try {
+    const d = await withTimeout(ON.db.collection('pseudos').doc(p).get(), 8000);
+    if (!d.exists) return onMsg('Aucun joueur ne s\'appelle ' + p + '.', true);
+    const fid = d.data().uid, fr = ON.me.friends || [];
+    if (fr.includes(fid)) return onMsg(p + ' est déjà dans tes amis.');
+    if (fr.length >= 100) return onMsg('Tu as déjà 100 amis.', true);
+    await ON.db.collection('players').doc(ON.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(fid) });
+    ON.me.friends = fr.concat(fid); inp.value = ''; onMsg(p + ' ajouté à tes amis.'); renderOnline();
+  } catch (e) { onMsg('Impossible d\'ajouter cet ami pour le moment. Vérifie ta connexion.', true); }
+  finally { $('addBtn').disabled = false; }
+}
+async function removeFriend(fid, name) {
+  try { await ON.db.collection('players').doc(ON.uid).update({ friends: firebase.firestore.FieldValue.arrayRemove(fid) }); ON.me.friends = (ON.me.friends || []).filter((x) => x !== fid); onMsg(name + ' retiré de tes amis.'); renderOnline(); }
+  catch (e) { onMsg('Impossible de retirer cet ami pour le moment.', true); }
+}
+async function fetchPlayers(ids) {
+  const out = [], FP = firebase.firestore.FieldPath.documentId();
+  for (let i = 0; i < ids.length; i += 10) { const q = await ON.db.collection('players').where(FP, 'in', ids.slice(i, i + 10)).get(); q.forEach((d) => out.push(Object.assign({ id: d.id }, d.data()))); }
+  return out;
+}
+let renderTok = 0;
+async function renderOnline() {
+  const box = $('friendList'), tok = ++renderTok;
+  $('tabFriends').classList.toggle('on', ON.tab === 'friends'); $('tabWorld').classList.toggle('on', ON.tab === 'world');
+  $('addBox').hidden = ON.tab !== 'friends' || !ON.ok;
+  box.textContent = '';
+  if (!ON.ok) {
+    const p = document.createElement('div'); p.className = 'empty';
+    p.textContent = ON.why === 'config' ? 'Le classement en ligne n\'est pas encore activé sur ce jeu.' : 'Pas de connexion au classement en ligne. Réessaie plus tard.';
+    box.appendChild(p); return;
+  }
+  const wait = document.createElement('div'); wait.className = 'empty'; wait.textContent = 'Chargement…'; box.appendChild(wait);
+  try {
+    let list;
+    if (ON.tab === 'friends') list = await withTimeout(fetchPlayers([ON.uid].concat(ON.me.friends || [])), 10000);
+    else { const q = await withTimeout(ON.db.collection('players').orderBy('best', 'desc').limit(25).get(), 10000); list = []; q.forEach((d) => list.push(Object.assign({ id: d.id }, d.data()))); }
+    if (tok !== renderTok) return;
+    list.sort((a, b) => (b.best || 0) - (a.best || 0)); box.textContent = '';
+    if (ON.tab === 'friends' && list.length <= 1) { const p = document.createElement('div'); p.className = 'empty'; p.textContent = 'Ajoute un ami avec son pseudo pour comparer vos scores. Ton pseudo : ' + (S.pseudo || '—'); box.appendChild(p); }
+    list.forEach((r, i) => {
+      const row = document.createElement('div'); row.className = 'row row5' + (r.id === ON.uid ? ' me' : '');
+      const cells = [['b', i + 1], ['span.n', r.pseudo || '?'], ['span.l', 'NIV. ' + (r.level || 1)], ['span.s', (r.best || 0).toLocaleString('fr-FR')]];
+      for (const [tag, txt] of cells) { const [t, c] = tag.split('.'); const el = document.createElement(t); if (c) el.className = c; el.textContent = txt; row.appendChild(el); }
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'rm'; x.setAttribute('aria-label', 'Retirer ' + (r.pseudo || ''));
+      if (ON.tab === 'friends' && r.id !== ON.uid) { x.textContent = '✕'; x.addEventListener('click', () => removeFriend(r.id, r.pseudo || 'Cet ami')); } else x.disabled = true;
+      row.appendChild(x); box.appendChild(row);
+    });
+  } catch (e) { if (tok !== renderTok) return; box.textContent = ''; const p = document.createElement('div'); p.className = 'empty'; p.textContent = 'Impossible de charger le classement. Vérifie ta connexion.'; box.appendChild(p); }
+}
+function showFriends() { onMsg(ON.ok ? 'Ton pseudo : ' + (S.pseudo || '— choisis-en un sur l\'accueil') : ''); $('scrMenu').hidden = true; $('scrFriends').hidden = false; renderOnline(); }
 function needPseudo() {
-  const inp = $('pseudoIn'), v = inp.value.trim().toUpperCase().replace(/\s+/g, ' ').slice(0, 14);
+  const inp = $('pseudoIn'), v = cleanPseudo(inp.value); $('pseudoMsg').textContent = '';
   if (!v) { inp.classList.remove('err'); void inp.offsetWidth; inp.classList.add('err'); inp.focus(); return false; }
   S.pseudo = v; setPseudo(v); $('hudWho').textContent = v; inp.blur(); return true;
 }
 function newRun() { S.runId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); S.level = 1; S.startSquad = 6; S.startWeapon = 1; S.startWtype = 'rifle'; S.startScore = 0; save(); }
-$('playBtn').addEventListener('click', () => { if (!needPseudo()) return; if (!S.runId) newRun(); startLevel(); });
-$('newBtn').addEventListener('click', () => { if (!needPseudo()) return; newRun(); startLevel(); });
+$('playBtn').addEventListener('click', async () => { if (!needPseudo() || !(await ensurePseudoOnline())) return; if (!S.runId) newRun(); startLevel(); });
+$('newBtn').addEventListener('click', async () => { if (!needPseudo() || !(await ensurePseudoOnline())) return; newRun(); startLevel(); });
+$('friendsBtn').addEventListener('click', async () => { if (cleanPseudo($('pseudoIn').value) && needPseudo()) await ensurePseudoOnline(); showFriends(); });
+$('friendsBack').addEventListener('click', () => { $('scrFriends').hidden = true; $('scrMenu').hidden = false; });
+$('tabFriends').addEventListener('click', () => { ON.tab = 'friends'; renderOnline(); });
+$('tabWorld').addEventListener('click', () => { ON.tab = 'world'; renderOnline(); });
+$('addBtn').addEventListener('click', addFriend);
+$('friendIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') addFriend(); });
 $('pseudoIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('playBtn').click(); });
 $('pseudoIn').addEventListener('input', () => $('pseudoIn').classList.remove('err'));
 function showBoard() {
@@ -2002,6 +2140,7 @@ function boot(data) {
   resize(); showMenu();
   const pb = $('playBtn'), label = pb.textContent; pb.disabled = true; pb.textContent = 'CHARGEMENT…';
   const done = () => { pb.disabled = false; pb.textContent = label; };
+  onlineInit();
   setTimeout(() => loadModel().then(applyModel).catch((e) => console.warn('modèle 3D indisponible', e)).finally(done), 30);
   if (document.fonts && document.fonts.load) { document.fonts.load('60px "Black Ops One"').catch(() => {}); document.fonts.load('800 30px "Barlow Condensed"').catch(() => {}); }
   requestAnimationFrame(frame);

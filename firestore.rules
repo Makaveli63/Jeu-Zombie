@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /players/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.pseudo is string && request.resource.data.pseudo.size() <= 14
+        && request.resource.data.best is int && request.resource.data.level is int
+        && request.resource.data.friends is list && request.resource.data.friends.size() <= 100;
+      allow delete: if false;
+    }
+    match /pseudos/{name} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && name.size() <= 14;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}
