@@ -291,6 +291,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script src="soldier-model.js"></script>
 <script src="firebase-config.js"></script>
 <script>
@@ -947,7 +948,94 @@ function applyModel(gltf) {
   for (const r of [soldierRig, zombieRig]) for (const p of r.parts) scene.remove(p.mesh);
   soldierRig = newSol; zombieRig = newZom;
   modelReady = true; A0 = anchors[0];
+  if (THREE.SkeletonUtils) MODEL = { gltf, norm, img: baseMap.image, normalMap };
   syncBodies(null);
+}
+// ---------- boss en vraie 3D : modèle animé géant, peau et accessoires propres ----------
+let MODEL = null;
+const BOSS3D = { boucher: 3.5, contremaitre: 3.8, mariee: 4.0 };
+function bossTex(type) {
+  const [c, g] = cv(512, 512); g.drawImage(MODEL.img, 0, 0, 512, 512);
+  const d = g.getImageData(0, 0, 512, 512), p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i] / 255, gg = p[i + 1] / 255, b = p[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), v = mx, s = mx ? (mx - mn) / mx : 0;
+    let h = 0; if (mx !== mn) { h = mx === r ? ((gg - b) / (mx - mn)) % 6 : mx === gg ? (b - r) / (mx - mn) + 2 : (r - gg) / (mx - mn) + 4; h *= 60; if (h < 0) h += 360; }
+    const tan = h > 15 && h < 50 && s > 0.2 && v > 0.4, red = (h < 12 || h > 340) && s > 0.45, olive = h >= 50 && h < 140 && s > 0.12;
+    const n = Math.sin(i * 0.0009) * 0.06 + Math.sin(i * 0.00017 + 2) * 0.05, L = 0.3 + v * 0.75;
+    let o = null;
+    if (type === 'boucher') { if (tan) o = [(0.78 + n) * L * 0.9, (0.42 + n) * L * 0.85, (0.4 + n) * L * 0.85]; else if (olive) o = [0.3 * L, 0.06 * L, 0.05 * L]; else if (red) o = [0.5 * v, 0.04, 0.03]; else o = [r * 0.9, gg * 0.75, b * 0.72]; }
+    else if (type === 'contremaitre') { if (tan) o = [1.0 * L * 0.95, (0.36 + n) * L * 0.9, 0.02]; else if (red) o = [0.88, 0.9, 0.92]; else if (olive) o = [0.16 * L + 0.04, 0.25 * L + 0.05, 0.42 * L + 0.07]; else o = [r * 0.85, gg * 0.85, b * 0.85]; }
+    else { if (tan || olive) o = [(0.82 + n) * L, (0.79 + n) * L, (0.74 + n) * L]; else if (red) o = [0.62 * v, 0.05, 0.06]; else o = [r * 0.8 + 0.1, gg * 0.8 + 0.1, b * 0.8 + 0.12]; }
+    p[i] = Math.min(255, o[0] * 255); p[i + 1] = Math.min(255, o[1] * 255); p[i + 2] = Math.min(255, o[2] * 255);
+  }
+  g.putImageData(d, 0, 0);
+  const splats = type === 'contremaitre' ? 50 : 120;
+  for (let k = 0; k < splats; k++) {
+    const x = rand(0, 512), y = rand(0, 512), rr = rand(4, 26), dark = Math.random() < 0.35;
+    const gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, dark ? 'rgba(30,12,10,0.6)' : 'rgba(120,8,6,0.85)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  }
+  g.strokeStyle = 'rgba(70,20,60,0.35)'; g.lineWidth = 1.2;
+  if (type !== 'contremaitre') for (let k = 0; k < 40; k++) { g.beginPath(); let x = rand(0, 512), y = rand(0, 512); g.moveTo(x, y); for (let q = 0; q < 5; q++) { x += rand(-12, 12); y += rand(-12, 12); g.lineTo(x, y); } g.stroke(); }
+  g.fillStyle = 'rgba(100,5,4,0.7)'; for (let k = 0; k < 50; k++) g.fillRect(rand(0, 512), rand(0, 512), rand(1, 3), rand(8, 34));
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.flipY = false; t.anisotropy = 4; return t;
+}
+function attachTo(bone, mesh, off) {
+  bone.updateMatrixWorld(true);
+  const bq = bone.getWorldQuaternion(new THREE.Quaternion()), bs = bone.getWorldScale(new THREE.Vector3()).x, inv = bq.clone().invert();
+  mesh.position.set(off[0], off[1], off[2]).applyQuaternion(inv).divideScalar(bs);
+  mesh.quaternion.copy(inv); mesh.scale.multiplyScalar(1 / bs);
+  mesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  bone.add(mesh);
+}
+function makeBoss3D(type) {
+  const clone = THREE.SkeletonUtils.clone(MODEL.gltf.scene), inner = new THREE.Group(), G = new THREE.Group();
+  inner.add(clone); inner.applyMatrix4(MODEL.norm); G.add(inner);
+  const mat = rim(new THREE.MeshStandardMaterial({ map: bossTex(type), normalMap: MODEL.normalMap, roughness: 0.72, metalness: 0.08 }), 0xff4020, 0.35, 2.6);
+  const eyeM = new THREE.MeshBasicMaterial({ color: col(0xff2a10), toneMapped: false });
+  mat.skinning = true; eyeM.skinning = true;
+  clone.traverse((o) => { if (o.isSkinnedMesh) { o.material = /visor/i.test(o.name) ? eyeM : mat; o.castShadow = true; o.frustumCulled = false; } });
+  const mixer = new THREE.AnimationMixer(clone), walk = mixer.clipAction(MODEL.gltf.animations.find((a) => a.name === 'Walk')); walk.play(); mixer.update(0);
+  const morph = { boucher: ['Spine1', [1.75, 1.0, 1.85]], contremaitre: ['Spine2', [1.45, 1.05, 1.25]], mariee: ['Spine', [0.86, 1.06, 0.86]] }[type];
+  const mb = findBone(clone, morph[0]); mb.scale.set(morph[1][0], morph[1][1], morph[1][2]);
+  G.updateMatrixWorld(true);
+  const pm = vmat(0.6, 0.15, 0xff5030), mk = (geo) => new THREE.Mesh(geo, pm);
+  const head = findBone(clone, 'Head'), rh = findBone(clone, 'RightHand'), lh = findBone(clone, 'LeftHand'), sp = findBone(clone, 'Spine1'), hips = findBone(clone, 'Hips');
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('rgba(255,90,40,1)', 'rgba(255,30,10,0.35)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  glow.scale.set(0.34, 0.2, 1);
+  if (type === 'boucher') {
+    attachTo(sp, mk(merge([P(Bx(0.54, 0.78, 0.03), 0xbdb5a4, [0, -0.22, 0], [0.12, 0, 0]), P(Sp(0.07, 8, 6), 0x6a1410, [0.08, -0.1, -0.014], [0, 0, 0], [1.6, 1.3, 0.2]), P(Sp(0.06, 8, 6), 0x6a1410, [-0.12, -0.3, -0.014], [0, 0, 0], [1.2, 1.8, 0.2]), P(Sp(0.05, 8, 6), 0x6a1410, [0.02, -0.38, -0.014], [0, 0, 0], [2, 1, 0.2]), P(Bx(0.02, 0.26, 0.02), 0xd9d2c2, [0.16, 0.18, 0.02]), P(Bx(0.02, 0.26, 0.02), 0xd9d2c2, [-0.16, 0.18, 0.02])])), [0, -0.04, -0.3]);
+    attachTo(sp, mk(merge([P(Sp(0.27, 16, 12), 0x8a4a40, [0, 0, 0], [0, 0, 0], [1.25, 1, 1.0])])), [0, -0.2, -0.1]);
+    attachTo(rh, mk(merge([P(Cy(0.025, 0.03, 0.22, 8), 0x3a2416, [0, 0, 0]), P(Bx(0.018, 0.3, 0.42), 0xd4d8de, [0, -0.25, -0.14]), P(Bx(0.02, 0.08, 0.42), 0x7a0e08, [0, -0.37, -0.14])])), [0, -0.1, -0.02]);
+    attachTo(lh, mk(merge([P(Cy(0.006, 0.006, 0.5, 4), 0x606468, [0, -0.25, 0]), P(new THREE.TorusGeometry(0.04, 0.01, 6, 12, Math.PI * 1.4), 0x8a8e92, [0, -0.52, 0], [0, Math.PI / 2, 0])])), [0, -0.04, 0]);
+  } else if (type === 'contremaitre') {
+    attachTo(head, mk(merge([P(new THREE.SphereGeometry(0.17, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), 0xffc81e, [0, 0, 0]), P(Cy(0.23, 0.23, 0.016, 22), 0xffc81e, [0, 0.005, -0.03]), P(Bx(0.04, 0.07, 0.3), 0xe0a810, [0, 0.14, 0])])), [0, 0.17, 0.0]);
+    attachTo(rh, mk(merge([P(Cy(0.018, 0.018, 0.95, 8), 0x6a4a2a, [0, -0.42, 0]), P(Bx(0.18, 0.18, 0.44), 0x45484e, [0, -0.9, 0]), P(Bx(0.185, 0.04, 0.445), 0xb02020, [0, -0.8, 0])])), [0, -0.05, 0]);
+    attachTo(sp, mk(merge([P(Bx(0.5, 0.04, 0.36), 0xdde2e6, [0, 0.12, 0]), P(Bx(0.5, 0.04, 0.36), 0xdde2e6, [0, -0.06, 0])])), [0, 0, 0]);
+  } else {
+    const skirt = new THREE.LatheGeometry([[0.13, 0], [0.2, -0.15], [0.33, -0.45], [0.52, -0.82], [0.6, -0.98]].map((q) => new THREE.Vector2(q[0], q[1])), 22);
+    attachTo(hips, mk(merge([P(skirt, 0xc9c2b2), P(new THREE.TorusGeometry(0.6, 0.03, 6, 26), 0xd8d2c2, [0, -0.98, 0], [Math.PI / 2, 0, 0]), P(Sp(0.1, 8, 6), 0x6a1410, [0.25, -0.6, -0.33], [0, 0, 0], [1, 1.8, 0.3]), P(Sp(0.08, 8, 6), 0x6a1410, [-0.3, -0.75, -0.38], [0, 0, 0], [1.4, 1.2, 0.3])])), [0, 0.02, 0]);
+    pm.side = THREE.DoubleSide;
+    const veilM = new THREE.MeshStandardMaterial({ color: col(0xf4f2ee), transparent: true, opacity: 0.72, side: THREE.DoubleSide, roughness: 0.9 });
+    const veil = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.85, 18, 1, true), veilM); veil.position.set(0, -0.38, 0.06); veil.rotation.x = 0.12;
+    const hv = new THREE.Group(); hv.add(veil); hv.add(mk(merge([new THREE.TorusGeometry(0.11, 0.012, 6, 18)].map((g2) => P(g2, 0xd9b44a, [0, 0, 0], [Math.PI / 2, 0, 0])).concat([-0.08, -0.03, 0.03, 0.08].map((x) => limb([x, -0.02, 0.06], [x * 1.3, -0.42, 0.1], 0.018, 0x221c18, 5))))));
+    attachTo(head, hv, [0, 0.12, 0.02]);
+    attachTo(lh, mk(merge([P(Cy(0.012, 0.012, 0.22, 5), 0x3a4a2a, [0, -0.1, 0]), ...[[0, 0], [0.04, 0.02], [-0.04, 0.01], [0.01, -0.04], [-0.02, 0.04]].map((q) => P(Sp(0.035, 6, 5), 0x4a1218, [q[0], -0.24, q[1]]))])), [0, -0.04, 0]);
+  }
+  attachTo(head, glow, [0, 0.06, -0.14]);
+  G.rotation.y = Math.PI; G.scale.setScalar(BOSS3D[type]);
+  return { g: G, mat, mixer, walk, root: clone, type, skinned: true, morph: [mb, morph[1]] };
+}
+function poseBoss(bo, dt, moving, wind) {
+  bo.walk.timeScale = moving ? 0.9 : 0.25;
+  bo.mixer.update(dt);
+  bo.morph[0].scale.set(bo.morph[1][0], bo.morph[1][1], bo.morph[1][2]);
+  bo.g.updateMatrixWorld(true);
+  const r = bo.root, t = bo.ph, sw = Math.sin(t) * 0.14;
+  bendTo(r, 'Spine2', 'Neck', [0, 1, 0.35 + (moving ? 0 : 0.2) - wind * 0.45]);
+  bendTo(r, 'Head', null, [Math.sin(t * 0.4) * 0.25, 0.85, 0.45 - wind * 0.3]);
+  const mix = (a, b2) => [a[0] + (b2[0] - a[0]) * wind, a[1] + (b2[1] - a[1]) * wind, a[2] + (b2[2] - a[2]) * wind];
+  aimChain(r, 'Right', mix([0.2, -0.25 + sw, 1], [0.25, 1, -0.15]), mix([0.05, -0.1, 1], [0, 1, 0.35]));
+  aimChain(r, 'Left', mix([-0.2, -0.15 - sw, 1], [-0.25, 1, -0.15]), mix([-0.05, -0.05, 1], [0, 1, 0.35]));
 }
 function loadModel() {
   return new Promise((res, rej) => {
@@ -1125,6 +1213,7 @@ function sparks(x, y, z, n, spd, c, up = 1) { const L = FXS.spk; for (let k = 0;
 function debris(x, y, z, n, spd, c, size) { const L = FXS.deb; for (let k = 0; k < n && L.length < FXMAX.deb; k++) { const a = rand(0, 6.283), u = rand(0.3, 1), life = rand(1.2, 2.2); L.push({ x, y, z, vx: Math.cos(a) * spd * u, vy: rand(0.5, 1.3) * spd, vz: Math.sin(a) * spd * u, rx: rand(0, 6), ry: rand(0, 6), wx: rand(-12, 12), wy: rand(-12, 12), s: size * rand(0.5, 1.4), life, max: life, c }); } }
 function smoke(x, y, z, n, size, c) { const L = FXS.smk; for (let k = 0; k < n && L.length < FXMAX.smk; k++) { const life = rand(0.9, 1.8); L.push({ x: x + rand(-0.5, 0.5), y, z: z + rand(-0.5, 0.5), vx: rand(-1, 1), vy: rand(0.8, 2.2), vz: rand(-1, 1), life, max: life, s: size * rand(0.6, 1.2), c: c || WHITE }); } }
 function impact(x, y, z, size, c) { const L = FXS.imp; if (L.length >= FXMAX.imp) L.shift(); L.push({ x, y, z, life: 0.09, max: 0.09, s: size, c: c || WHITE, r: rand(0, 6) }); }
+const bossLight = new THREE.PointLight(0xffb48a, 0, 18, 1.6); scene.add(bossLight);
 const FLIGHTS = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffa040, 0, 20, 2); scene.add(l); return { l, t: 0, max: 1, i: 0 }; });
 function lightFlash(x, y, z, color, intensity, dur) { let best = FLIGHTS[0]; for (const f of FLIGHTS) if (f.t < best.t) best = f; best.l.position.set(x, y, z); best.l.color.set(color); best.t = best.max = dur; best.i = intensity; }
 const ZA = new THREE.Vector3(0, 0, 1), VD = new THREE.Vector3(), QB = new THREE.Quaternion();
@@ -1775,7 +1864,7 @@ function makeBoss(type) {
 function spawnBoss() {
   const dps = squadDps();
   const hp = 120 + S.level * 120 + dps * Math.min(16, 7 + S.level * 0.8);
-  const type = bossType(S.level), b = makeBoss(type); b.g.position.set(0, 0, SPAWNZ - 6); scene.add(b.g);
+  const type = bossType(S.level); let b; try { b = MODEL ? makeBoss3D(type) : makeBoss(type); } catch (e) { console.warn(e); b = makeBoss(type); } b.g.position.set(0, 0, SPAWNZ - 6); scene.add(b.g);
   b.g.updateMatrixWorld(true); const top = new THREE.Box3().setFromObject(b.g).max.y + 0.6;
   S.bTrail = 1; S.boss = Object.assign(b, { x: 0, z: SPAWNZ - 6, hp, max: hp, ph: 0, atk: 1.5, wind: 0, minion: 3, flash: 0, top, label: makeLabel(true) });
   S.boss.label.sp.scale.set(4.2, 1.6, 1);
@@ -1856,6 +1945,7 @@ function clearWorld() {
   for (const g of gates) scene.remove(g.group); gates.length = 0;
   for (const b of barrels) scene.remove(b.g); barrels.length = 0;
   if (S.boss) { scene.remove(S.boss.g); dropLabel(S.boss.label); S.boss = null; }
+  if (S.deadBoss) { scene.remove(S.deadBoss.g); S.deadBoss = null; }
   for (const H of hordes) dropLabel(H.label); hordes.length = 0;
   for (const t of trucks) { scene.remove(t.g); dropLabel(t.label); } trucks.length = 0;
   bullets.length = 0; parts.length = 0; decals.length = 0; decalHead = 0;
@@ -2114,11 +2204,11 @@ function update(dt) {
       const stopZ = -(sr * 0.8 + 3.4);
       if (bo.z < stopZ) {
         bo.z = Math.min(stopZ, bo.z + (4.6 + S.level * 0.15) * dt);
-        bo.legs[0].rotation.x = Math.sin(bo.ph) * 0.5; bo.legs[1].rotation.x = -Math.sin(bo.ph) * 0.5;
-        bo.arms[0].rotation.x = bo.arms[1].rotation.x = 1.2 + Math.sin(bo.ph * 0.7) * 0.15;
+        if (bo.skinned) { poseBoss(bo, dt, true, 0); const st = Math.sin(bo.ph * 1.05); if (st * (bo.lastStep || 0) < 0) { smoke(bo.x + rand(-1, 1), 0.3, bo.z + 0.5, 2, 1.6); S.shake = Math.max(S.shake, 0.18); } bo.lastStep = st; }
+        else { bo.legs[0].rotation.x = Math.sin(bo.ph) * 0.5; bo.legs[1].rotation.x = -Math.sin(bo.ph) * 0.5; bo.arms[0].rotation.x = bo.arms[1].rotation.x = 1.2 + Math.sin(bo.ph * 0.7) * 0.15; }
       } else {
         bo.atk -= dt; const wind = clamp(1 - bo.atk / 0.7, 0, 1);
-        bo.arms[0].rotation.x = bo.arms[1].rotation.x = 1.2 + wind * 1.7;
+        if (bo.skinned) poseBoss(bo, dt, false, Math.pow(wind, 1.5)); else bo.arms[0].rotation.x = bo.arms[1].rotation.x = 1.2 + wind * 1.7;
         if (bo.atk <= 0) {
           bo.atk = Math.max(0.8, 1.5 - S.level * 0.05);
           const k = Math.min(soldiers.length, 2 + Math.floor(S.level / 2));
@@ -2130,14 +2220,25 @@ function update(dt) {
       bo.minion -= dt;
       if (bo.minion <= 0) { bo.minion = Math.max(2.5, 5 - S.level * 0.2); spawnHorde(Math.round(4 + S.level * 1.5 + 3 * Math.log2(power() + 1)), 4); }
     }
+    if (bo.skinned && !playing) poseBoss(bo, dt, false, 0);
+    bossLight.position.set(bo.x + 1.5, 4.5, bo.z + 5); bossLight.intensity = bo.skinned ? (bo.type === 'mariee' ? 1.8 : 3.0) + Math.sin(S.timer * 7) * 0.3 : 0;
+    if (bo.skinned && Math.random() < dt * 2) burst(bo.x + rand(-0.6, 0.6), rand(3.5, 5.5), bo.z + 0.6, C.blood, 2, 1.2, 0.12);
     bo.flash = Math.max(0, bo.flash - dt);
     bo.g.position.set(bo.x + (bo.flash > 0 ? rand(-0.06, 0.06) : 0), 0, bo.z);
     const bf = Math.max(0, bo.hp / bo.max); $('bossBar').style.width = (bf * 100) + '%';
     if (S.timer - S.bHitT > 0.35) S.bTrail += (bf - S.bTrail) * Math.min(1, dt * 3);
     $('bossTrail').style.width = (Math.max(bf, S.bTrail) * 100) + '%'; $('bossHp').textContent = fmt(Math.ceil(bo.hp));
     const bb = $('bossBox'); bb.classList.toggle('low', bf < 0.3); if (bo.flash > 0 && !bb.classList.contains('hit')) { bb.classList.add('hit'); setTimeout(() => bb.classList.remove('hit'), 120); }
-    const fk = bo.flash > 0 && Math.random() < 0.45 ? rand(0.1, 0.28) : 0; bo.mat.emissive.setRGB(fk, fk * 0.8, fk * 0.6);
+    const fk = bo.flash > 0 && Math.random() < 0.35 ? rand(0.06, 0.18) : 0; bo.mat.emissive.setRGB(fk, fk * 0.8, fk * 0.6);
     bo.label.sp.visible = false;
+  }
+  const db = S.deadBoss;
+  if (db) {
+    db.t += dt; const f = Math.min(1, db.t / 1.0);
+    db.g.rotation.set(-f * f * 1.45, Math.PI, 0); db.z += dz; db.g.position.set(db.x, db.t > 1.6 ? -(db.t - 1.6) * 2.2 : 0, db.z);
+    if (!db.hit && db.t > 1.0) { db.hit = true; shockwave(db.x, db.z - 3, 1.5); for (let k = 0; k < 3; k++) burst(db.x + rand(-2, 2), 1, db.z - rand(1, 5), C.blood, 24, 8, 0.22); for (let k = 0; k < 5; k++) addDecal(db.x + rand(-2.5, 2.5), db.z - rand(0, 6), rand(1, 2)); }
+    if (db.t < 1 && Math.random() < 0.5) burst(db.x + rand(-1, 1), rand(2, 5), db.z, C.blood, 3, 4, 0.16);
+    if (db.t > 3.2) { scene.remove(db.g); S.deadBoss = null; }
   }
   if (ring.material.opacity > 0) { ring.scale.multiplyScalar(1 + dt * 5); ring.material.opacity = Math.max(0, ring.material.opacity - dt * 2); }
 
@@ -2199,7 +2300,9 @@ function bossDie() {
   for (let k = 0; k < 4; k++) { burst(bo.x + rand(-1.5, 1.5), rand(1, 5), bo.z, C.blood, 26, 8, 0.22); burst(bo.x, 3, bo.z, C.gore, 14, 6, 0.2); }
   burst(bo.x, 2, bo.z, C.yellow, 30, 10, 0.15);
   for (let k = 0; k < 6; k++) addDecal(bo.x + rand(-2, 2), bo.z + rand(-2, 2), rand(0.8, 1.8));
-  scene.remove(bo.g); dropLabel(bo.label); S.boss = null; $('bossBox').hidden = true;
+  dropLabel(bo.label); S.boss = null; $('bossBox').hidden = true; bossLight.intensity = 0;
+  if (bo.skinned) { S.deadBoss = { g: bo.g, t: 0, x: bo.x, z: bo.z, hit: false }; bo.mat.emissive.setRGB(0.35, 0.05, 0.02); } else scene.remove(bo.g);
+  lightFlash(bo.x, 4, bo.z, 0xff5020, 14, 0.9); impact(bo.x, 4, bo.z + 1, 9, SPKC.hot); sparks(bo.x, 3, bo.z, 60, 12, SPKC.hot);
   for (let i = zombies.length - 1; i >= 0; i--) killZombie(i, true);
   S.score += 500 * S.level; addCoins(40 + 20 * S.level); track('boss', 1); S.slow = 1.4; sfx.boom(true); sfx.win(); S.shake = 1; buzz([80, 40, 120]);
   floatText(BOSSES[bo.type].done, S.squadX, 4, -6, 'gold');
