@@ -53,10 +53,22 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
 #comp { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
 #comp div { display: flex; align-items: center; gap: 6px; background: rgba(10,12,16,.6); border-radius: 4px; padding: 3px 8px; font: 700 13px var(--f-body); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 #comp i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; transform: rotate(45deg); }
-#bossBox { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 64px); left: 50%; transform: translateX(-50%); width: min(78vw, 420px); text-align: center; }
-#bossBox span { font-family: var(--f-display); font-size: 15px; letter-spacing: .2em; color: #ffb3a8; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
-#bossBox .bar { margin-top: 4px; height: 12px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,140,120,.6); border-radius: 2px; overflow: hidden; }
-#bossBox .bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a3c, #a5160f); transition: width .1s linear; }
+#bossBox { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 50%; transform: translateX(-50%); width: min(calc(100vw - 24px), 600px); }
+#bossBox .bhead { display: flex; align-items: center; gap: 8px; }
+#bossBox .bskull { width: 34px; height: 34px; flex: none; border-radius: 50%; background: radial-gradient(circle at 50% 42%, #f2ede4 0 34%, transparent 35%), #1a0606; border: 3px solid #d8392f; box-shadow: 0 0 14px rgba(255,60,30,.6); position: relative; }
+#bossBox .bskull::after { content: ""; position: absolute; left: 9px; top: 11px; width: 4px; height: 5px; background: #1a0606; border-radius: 2px; box-shadow: 8px 0 0 #1a0606; }
+#bossBox span { flex: 1; font-family: var(--f-display); font-size: 18px; letter-spacing: .14em; color: #fff; text-shadow: 0 2px 0 #5a1410, 0 0 12px rgba(255,60,30,.5); }
+#bossBox b { font-family: var(--f-display); font-weight: 400; font-size: 18px; color: #ff8a70; font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
+#bossBox .bar { position: relative; margin-top: 4px; height: 20px; background: linear-gradient(180deg, #2a0806, #120302); border: 2px solid #1a0505; outline: 1px solid rgba(255,120,90,.55); border-radius: 3px; overflow: hidden; transform: skewX(-14deg); box-shadow: 0 4px 14px rgba(0,0,0,.6); }
+#bossBox .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; }
+#bossTrail { background: linear-gradient(180deg, #fff2d6, #ffb070); }
+#bossBar { background: linear-gradient(180deg, #ff7a52 0%, #e0281a 45%, #8a0e08 100%); box-shadow: inset 0 2px 0 rgba(255,220,190,.45); }
+#bossBox .bar u { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(0,0,0,.55) calc(10% - 2px) 10%); }
+#bossBox.hit .bar { animation: bshake .12s linear; }
+#bossBox.hit #bossBar { filter: brightness(1.7); }
+#bossBox.low #bossBar { animation: blow .5s ease-in-out infinite alternate; }
+@keyframes bshake { 0%, 100% { transform: skewX(-14deg) translateX(0); } 33% { transform: skewX(-14deg) translateX(-3px); } 66% { transform: skewX(-14deg) translateX(3px); } }
+@keyframes blow { to { filter: brightness(1.5) saturate(1.3); } }
 #tag { position: fixed; left: 0; top: 0; z-index: 2; pointer-events: none; font-family: var(--f-display); font-size: 26px; color: #fff;
   background: rgba(30,90,200,.85); border: 2px solid #9fd2ff; border-radius: 6px; padding: 0 10px; line-height: 34px; min-width: 22px; text-align: center;
   box-shadow: 0 4px 0 rgba(0,0,0,.35); transform: translate(-50%, -100%); will-change: transform; font-variant-numeric: tabular-nums; }
@@ -168,7 +180,7 @@ body { font-family: var(--f-body); -webkit-user-select: none; user-select: none;
       <button class="iconbtn" id="muteBtn" type="button">SON</button>
     </div>
   </div>
-  <div id="bossBox" hidden><span id="bossName">MASTODONTE</span><div class="bar"><i id="bossBar"></i></div></div>
+  <div id="bossBox" hidden><div class="bhead"><i class="bskull"></i><span id="bossName">BOSS</span><b id="bossHp">0</b></div><div class="bar"><i id="bossTrail"></i><i id="bossBar"></i><u></u></div></div>
   <div id="wpn"><span id="wpnName">FUSIL</span><b id="wpnTxt">1</b></div>
   <div id="comp"></div>
 </div>
@@ -317,7 +329,7 @@ scene.fog = new THREE.Fog(FOGC, 40, 190);
 scene.background = FOGC.clone();
 const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 1200);
 const CAMDIR = new THREE.Vector3(0, 0.56, 0.83).normalize();
-let camDist = 20;
+let camDist = 20, camFov = 55;
 
 // ciel orageux (nuages procéduraux, soleil, éclairs)
 const skyMat = new THREE.ShaderMaterial({
@@ -359,8 +371,8 @@ scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffd2a0, 2.1);
 sun.castShadow = true;
 const BIG = Math.max(screen.width, screen.height) > 1000 && !('ontouchstart' in window);
-sun.shadow.mapSize.set(BIG ? 2048 : 1024, BIG ? 2048 : 1024);
-Object.assign(sun.shadow.camera, { left: -24, right: 15, top: 34, bottom: -34, near: 1, far: 90 });
+sun.shadow.mapSize.set(BIG ? 2048 : 1536, BIG ? 2048 : 1536);
+Object.assign(sun.shadow.camera, { left: -17, right: 17, top: 28, bottom: -28, near: 1, far: 90 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
 scene.add(sun, sun.target);
 const fill = new THREE.DirectionalLight(0xb8c8ff, 0.3);
@@ -1093,6 +1105,80 @@ for (let i = 0; i < CARN; i++) {
 }
 const flameMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowTex('rgba(255,240,190,1)', 'rgba(255,110,20,0.55)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), MAXB);
 flameMesh.frustumCulled = false; flameMesh.count = 0; scene.add(flameMesh);
+// ---------- effets avancés : étincelles, débris, fumée, impacts, lumières dynamiques ----------
+function starTex() {
+  const [c, g] = cv(128, 128);
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.2, 'rgba(255,210,120,0.8)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  g.globalCompositeOperation = 'lighter';
+  for (let k = 0; k < 4; k++) { g.save(); g.translate(64, 64); g.rotate(k * Math.PI / 4); const lg = g.createLinearGradient(-64, 0, 64, 0); lg.addColorStop(0, 'rgba(255,200,120,0)'); lg.addColorStop(0.5, 'rgba(255,250,220,0.9)'); lg.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = lg; g.fillRect(-64, k % 2 ? -1.5 : -3, 128, k % 2 ? 3 : 6); g.restore(); }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+const FXS = { spk: [], deb: [], smk: [], imp: [] }, FXMAX = { spk: 700, deb: 220, smk: 170, imp: 60 };
+function fxMesh(geo, mat, max, shadow) { const m = new THREE.InstancedMesh(geo, mat, max); m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); for (let i = 0; i < max; i++) m.setColorAt(i, WHITE); m.count = 0; m.castShadow = !!shadow; scene.add(m); return m; }
+const spkMesh = fxMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), FXMAX.spk);
+const debMesh = fxMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.65, metalness: 0.45 }), FXMAX.deb, true);
+const smkMesh = fxMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowTex('rgba(92,84,78,0.8)', 'rgba(70,64,60,0.32)'), transparent: true, depthWrite: false }), FXMAX.smk);
+const impMesh = fxMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: starTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), FXMAX.imp);
+const SPKC = { hot: new THREE.Color(1, 0.75, 0.35), white: new THREE.Color(1, 0.95, 0.8), cyan: new THREE.Color(0.4, 0.9, 1), red: new THREE.Color(1, 0.3, 0.2), gold: new THREE.Color(1, 0.8, 0.25), violet: new THREE.Color(0.8, 0.4, 1) };
+function sparks(x, y, z, n, spd, c, up = 1) { const L = FXS.spk; for (let k = 0; k < n && L.length < FXMAX.spk; k++) { const a = rand(0, 6.283), u = rand(0.2, 1), life = rand(0.25, 0.7); L.push({ x, y, z, vx: Math.cos(a) * spd * u, vy: rand(0.3, 1.1) * spd * up, vz: Math.sin(a) * spd * u, life, max: life, c: c || SPKC.hot }); } }
+function debris(x, y, z, n, spd, c, size) { const L = FXS.deb; for (let k = 0; k < n && L.length < FXMAX.deb; k++) { const a = rand(0, 6.283), u = rand(0.3, 1), life = rand(1.2, 2.2); L.push({ x, y, z, vx: Math.cos(a) * spd * u, vy: rand(0.5, 1.3) * spd, vz: Math.sin(a) * spd * u, rx: rand(0, 6), ry: rand(0, 6), wx: rand(-12, 12), wy: rand(-12, 12), s: size * rand(0.5, 1.4), life, max: life, c }); } }
+function smoke(x, y, z, n, size, c) { const L = FXS.smk; for (let k = 0; k < n && L.length < FXMAX.smk; k++) { const life = rand(0.9, 1.8); L.push({ x: x + rand(-0.5, 0.5), y, z: z + rand(-0.5, 0.5), vx: rand(-1, 1), vy: rand(0.8, 2.2), vz: rand(-1, 1), life, max: life, s: size * rand(0.6, 1.2), c: c || WHITE }); } }
+function impact(x, y, z, size, c) { const L = FXS.imp; if (L.length >= FXMAX.imp) L.shift(); L.push({ x, y, z, life: 0.09, max: 0.09, s: size, c: c || WHITE, r: rand(0, 6) }); }
+const FLIGHTS = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffa040, 0, 20, 2); scene.add(l); return { l, t: 0, max: 1, i: 0 }; });
+function lightFlash(x, y, z, color, intensity, dur) { let best = FLIGHTS[0]; for (const f of FLIGHTS) if (f.t < best.t) best = f; best.l.position.set(x, y, z); best.l.color.set(color); best.t = best.max = dur; best.i = intensity; }
+const ZA = new THREE.Vector3(0, 0, 1), VD = new THREE.Vector3(), QB = new THREE.Quaternion();
+function updateFx(dt, dz) {
+  let n = 0;
+  for (let i = FXS.spk.length - 1; i >= 0; i--) {
+    const p = FXS.spk[i]; p.life -= dt; if (p.life <= 0) { FXS.spk[i] = FXS.spk[FXS.spk.length - 1]; FXS.spk.pop(); continue; }
+    p.vy -= 20 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += (p.vz) * dt + dz;
+    if (p.y < 0.03) { p.y = 0.03; p.vy *= -0.35; p.vx *= 0.6; p.vz *= 0.6; }
+    const sp = Math.hypot(p.vx, p.vy, p.vz) + 0.01, f = p.life / p.max;
+    QB.setFromUnitVectors(ZA, VD.set(p.vx / sp, p.vy / sp, p.vz / sp));
+    M4.compose(V3.set(p.x, p.y, p.z), QB, S3.set(0.035, 0.035, (0.08 + sp * 0.022) * f)); spkMesh.setMatrixAt(n, M4); spkMesh.setColorAt(n, p.c); n++;
+  }
+  spkMesh.count = n; if (n) { spkMesh.instanceMatrix.needsUpdate = true; spkMesh.instanceColor.needsUpdate = true; }
+  n = 0;
+  for (let i = FXS.deb.length - 1; i >= 0; i--) {
+    const p = FXS.deb[i]; p.life -= dt; if (p.life <= 0) { FXS.deb[i] = FXS.deb[FXS.deb.length - 1]; FXS.deb.pop(); continue; }
+    p.vy -= 18 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt + dz; p.rx += p.wx * dt; p.ry += p.wy * dt;
+    if (p.y < p.s * 0.5) { p.y = p.s * 0.5; p.vy *= -0.3; p.vx *= 0.5; p.vz *= 0.5; p.wx *= 0.5; p.wy *= 0.5; }
+    const s = p.s * Math.min(1, p.life / 0.3);
+    M4.compose(V3.set(p.x, p.y, p.z), QB.setFromEuler(EU.set(p.rx, p.ry, 0)), S3.set(s, s * 0.6, s * 0.9)); debMesh.setMatrixAt(n, M4); debMesh.setColorAt(n, p.c); n++;
+  }
+  debMesh.count = n; if (n) { debMesh.instanceMatrix.needsUpdate = true; debMesh.instanceColor.needsUpdate = true; }
+  n = 0;
+  for (let i = FXS.smk.length - 1; i >= 0; i--) {
+    const p = FXS.smk[i]; p.life -= dt; if (p.life <= 0) { FXS.smk[i] = FXS.smk[FXS.smk.length - 1]; FXS.smk.pop(); continue; }
+    p.vx *= 0.97; p.vz *= 0.97; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt + dz;
+    const a = 1 - p.life / p.max, s = p.s * (0.6 + a * 1.6) * (a > 0.75 ? 1 - (a - 0.75) * 2.4 : 1);
+    M4.compose(V3.set(p.x, p.y, p.z), camera.quaternion, S3.set(s, s, s)); smkMesh.setMatrixAt(n, M4); smkMesh.setColorAt(n, p.c); n++;
+  }
+  smkMesh.count = n; if (n) { smkMesh.instanceMatrix.needsUpdate = true; smkMesh.instanceColor.needsUpdate = true; }
+  n = 0;
+  for (let i = FXS.imp.length - 1; i >= 0; i--) {
+    const p = FXS.imp[i]; p.life -= dt; if (p.life <= 0) { FXS.imp.splice(i, 1); continue; }
+    const s = p.s * (0.6 + (1 - p.life / p.max) * 0.8);
+    QB.copy(camera.quaternion).multiply(_q1.setFromAxisAngle(ZA, p.r));
+    M4.compose(V3.set(p.x, p.y, p.z), QB, S3.set(s, s, s)); impMesh.setMatrixAt(n, M4); impMesh.setColorAt(n, p.c); n++;
+  }
+  impMesh.count = n; if (n) { impMesh.instanceMatrix.needsUpdate = true; impMesh.instanceColor.needsUpdate = true; }
+  for (const f of FLIGHTS) { if (f.t > 0) { f.t -= dt; f.l.position.z += dz; f.l.intensity = f.i * Math.pow(Math.max(0, f.t / f.max), 1.5); } else f.l.intensity = 0; }
+  S.tintA = Math.max(0, S.tintA - dt * 2.2); S.punch = Math.max(0, S.punch - dt * 3);
+}
+const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.6, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(0x8a7a68), transparent: true, opacity: 0, depthWrite: false }));
+ring2.position.y = 0.06; scene.add(ring2);
+function shockwave(x, z, power) {
+  ring.position.set(x, 0.08, z); ring.scale.setScalar(0.4); ring.material.opacity = 1; ring.material.color.copy(col(0xffa050));
+  ring2.position.set(x, 0.06, z); ring2.scale.setScalar(0.3); ring2.material.opacity = 0.85;
+  for (let k = 0; k < 14; k++) { const a = k / 14 * 6.283; smoke(x + Math.cos(a) * 1.5, 0.4, z + Math.sin(a) * 1.5, 1, 2.2 * power, SPKC.white); const p = FXS.smk[FXS.smk.length - 1]; if (p) { p.vx = Math.cos(a) * 9; p.vz = Math.sin(a) * 9; p.vy = 0.6; } }
+  debris(x, 0.3, z, Math.round(14 * power), 7, col(0x6a645c), 0.28); sparks(x, 0.4, z, Math.round(24 * power), 9, SPKC.hot, 0.6);
+  lightFlash(x, 1.5, z, 0xff8a40, 9 * power, 0.45);
+  S.shake = Math.max(S.shake, 0.9 * power); S.punch = 1; S.tintC = 0; S.tintA = 0.35; buzz(90);
+  for (const s of soldiers) if (Math.hypot(s.x - x, s.z - z) < 7) { s.z += 1.3; s.x += Math.sign(s.x - x || rand(-1, 1)) * 0.5; }
+}
+
 const mistMat = new THREE.SpriteMaterial({ map: glowTex('rgba(215,185,160,0.55)', 'rgba(200,170,150,0.25)'), transparent: true, depthWrite: false, opacity: 0.5 });
 const mists = [];
 for (let i = 0; i < 9; i++) { const m = new THREE.Sprite(mistMat); m.scale.set(rand(26, 40), rand(5, 8), 1); scene.add(m); bridgeOnly.push(m); mists.push({ m, x: rand(-16, 10), z: -30 - i * 13, y: rand(1, 2.5) }); }
@@ -1121,7 +1207,7 @@ for (const [geo, n, sc] of [[cactusGeo, 46, [0.7, 1.4]], [bushGeo, 70, [0.6, 1.4
   props.push({ m, base });
 }
 const THEMES = {
-  bridge: { top: 0x1c2838, mid: 0xc8885e, fog: 0xa8846c, cloud: 1, hs: 0xdbe6ff, hg: 0x4a3a2c, hi: 0.8, sc: 0xffd2a0, si: 2.1, sun: [-14, 30, -34], sky: [-0.3, 0.1, -1] },
+  bridge: { top: 0x111924, mid: 0xa66a48, fog: 0x76604f, cloud: 1, hs: 0xb8c8ea, hg: 0x2c231c, hi: 0.6, sc: 0xffc890, si: 1.9, sun: [-14, 30, -34], sky: [-0.3, 0.1, -1] },
   desert: { top: 0x3f7fc8, mid: 0xf2d6a8, fog: 0xe6cb9e, cloud: 0.25, hs: 0xd8ecff, hg: 0xb08a5a, hi: 1.0, sc: 0xfff1d6, si: 2.6, sun: [-16, 40, -12], sky: [-0.35, 0.45, -1] }
 };
 let TH = THEMES.bridge;
@@ -1179,9 +1265,9 @@ function atmos(dt, dz) {
 function thunder() { if (!AC || muted) return; noise(2.2, 'lowpass', 160, 0.8, 0.5, 0.35); noise(0.6, 'lowpass', 900, 0.6, 0.18, 0.3); }
 
 const GradeShader = {
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, hurt: { value: 0 }, flash: { value: 0 }, res: { value: new THREE.Vector2(1, 1) } },
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, hurt: { value: 0 }, flash: { value: 0 }, tintA: { value: 0 }, tintC: { value: new THREE.Vector3(0.3, 0.8, 1) }, res: { value: new THREE.Vector2(1, 1) } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float time, hurt, flash; uniform vec2 res; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float time, hurt, flash, tintA; uniform vec3 tintC; uniform vec2 res; varying vec2 vUv;
 vec3 toS(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }
 void main(){
   vec2 d = vUv - 0.5; float r = length(d); vec2 off = d * r * 0.012;
@@ -1190,9 +1276,10 @@ void main(){
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(vec3(l), c, 1.14);
   c = mix(c * vec3(0.9, 1.0, 1.1), c * vec3(1.07, 1.0, 0.88), smoothstep(0.15, 0.8, l));
-  c = (c - 0.5) * 1.07 + 0.5;
+  c = (c - 0.5) * 1.1 + 0.5;
   c += flash * vec3(0.12, 0.13, 0.17);
-  c *= mix(0.5, 1.0, smoothstep(0.85, 0.25, r * 1.2));
+  c *= mix(0.38, 1.0, smoothstep(0.85, 0.22, r * 1.2));
+  c = mix(c, tintC, tintA * smoothstep(0.15, 0.75, r) * 0.55); c += tintC * tintA * 0.06;
   c = mix(c, vec3(0.7, 0.04, 0.03), hurt * smoothstep(0.2, 0.75, r) * 0.75);
   float n = fract(sin(dot(vUv * res + fract(time) * 97.0, vec2(12.9898, 78.233))) * 43758.5453);
   c += (n - 0.5) * 0.035;
@@ -1208,7 +1295,7 @@ function setupPost() {
     if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { rt = new THREE.WebGLMultisampleRenderTarget(sz.x, sz.y, { format: THREE.RGBAFormat }); rt.samples = 4; }
     composer = new THREE.EffectComposer(renderer, rt);
     composer.addPass(new THREE.RenderPass(scene, camera));
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.75, 0.5, 0.8);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.9, 0.55, 0.76);
     const bs = bloomPass.setSize.bind(bloomPass); bloomPass.setSize = (w, h) => bs(Math.max(2, w * 0.5), Math.max(2, h * 0.5));
     composer.addPass(bloomPass);
     gradePass = new THREE.ShaderPass(GradeShader); composer.addPass(gradePass);
@@ -1225,7 +1312,7 @@ const S = {
   state: 'menu', level: 1, score: 0, kills: 0, best: 0, weapon: 1, scroll: 0, speed: 0, levelDist: 0,
   squadX: 0, targetX: 0, fireAcc: 0, fireIdx: 0, shake: 0, events: [], evIdx: 0, bossAt: 1,
   boss: null, timer: 0, hurt: 0, flash: 0, nextBolt: 9, startSquad: 6, startWeapon: 1, startScore: 0, menuSquad: 8,
-  cnt: [0, 0, 0, 0, 0, 0], extra: 0, coins: 0, runCoins: 0, peak: 0, revived: false, slow: 0, wtype: 'rifle', startWtype: 'rifle', fuseT: 0
+  cnt: [0, 0, 0, 0, 0, 0], extra: 0, coins: 0, runCoins: 0, peak: 0, revived: false, slow: 0, tintA: 0, tintC: 0, punch: 0, bTrail: 1, bHitT: 0, wtype: 'rifle', startWtype: 'rifle', fuseT: 0
 };
 const soldiers = [], zombies = [], bullets = [], parts = [], decals = [], gates = [], barrels = [], floaters = [];
 let decalHead = 0;
@@ -1508,7 +1595,9 @@ function spawnTruck(i) {
 function truckDie(k, crashed) {
   const t = trucks[k];
   explode(t.x, t.z, 0, 0.1); burst(t.x, 1.5, t.z, C.spark, 30, 9, 0.22); burst(t.x, 2, t.z, C.smoke, 16, 3, 0.6);
-  sfx.boom(true); S.shake = 0.8; addDecal(t.x, t.z, 2.2);
+  sfx.boom(true); S.shake = Math.max(S.shake, 1.15); S.punch = 1; addDecal(t.x, t.z, 2.2); buzz([60, 30, 90]);
+  debris(t.x, 1.4, t.z, 26, 11, col(0x3a3c40), 0.4); debris(t.x, 1.4, t.z, 12, 9, col(0x5a4a3a), 0.35); sparks(t.x, 1.6, t.z, 70, 14, SPKC.hot); smoke(t.x, 1.5, t.z, 14, 4.2);
+  impact(t.x, 1.8, t.z, 7, SPKC.hot); lightFlash(t.x, 2.5, t.z, 0xff8030, 14, 0.7); S.tintC = 0; S.tintA = 0.45;
   if (!crashed) { track('trucks', 1); S.score += 150; addCoins(8 + S.level * 2); const H = { label: makeLabel(false), hp: 0, n: 0, x: 0, z: 0 }; hordes.push(H); for (let q = 0; q < 6 + S.level; q++) spawnZombie(clamp(t.x + rand(-1.5, 1.5), -HALF + 0.4, HALF - 0.4), t.z - rand(0, 2), 1 + S.level * 0.5, undefined, H); }
   scene.remove(t.g); dropLabel(t.label); trucks.splice(k, 1);
 }
@@ -1530,7 +1619,9 @@ function applyGate(h) {
   const good = nn >= n;
   const label = h.type === 'add' ? (v >= 0 ? '+' : '−') + Math.abs(v) : (h.type === 'mul' ? '×' : '÷') + v;
   floatText(label, S.squadX, 3, -1, good ? 'good' : 'bad');
-  sfx.gate(good);
+  sfx.gate(good); S.shake = Math.max(S.shake, good ? 0.4 : 0.6); S.punch = 1; S.tintC = good ? 1 : 2; S.tintA = 0.8; buzz(good ? 30 : 70);
+  sparks(S.squadX, 1.5, -0.5, 40, 9, good ? SPKC.cyan : SPKC.red); impact(S.squadX, 1.8, -0.8, 5, good ? SPKC.cyan : SPKC.red);
+  lightFlash(S.squadX, 2.5, -1, good ? 0x40c0ff : 0xff3020, 9, 0.5);
   setPowerTo(nn);
 }
 
@@ -1587,7 +1678,10 @@ function destroyBarrel(i) {
   const b = barrels[i];
   burst(b.x, 1, b.z, b.kind === 'squad' ? C.teal : C.purple, 26, 7, 0.2);
   burst(b.x, 1, b.z, C.yellow, 16, 6, 0.14); burst(b.x, 1.2, b.z, C.smoke, 10, 2.5, 0.35);
-  sfx.boom(false); S.shake = Math.max(S.shake, 0.35); S.score += 50;
+  sfx.boom(false); S.shake = Math.max(S.shake, 0.6); S.punch = Math.max(S.punch, 0.6); S.score += 50; buzz(50);
+  const bc = b.kind === 'squad' ? col(0x2fd2a4) : col(0x9a3ce0);
+  debris(b.x, 1, b.z, 16, 9, bc, 0.3); debris(b.x, 1, b.z, 8, 8, col(0x4a4f55), 0.22); sparks(b.x, 1, b.z, 40, 11, SPKC.hot); smoke(b.x, 1, b.z, 8, 2.6);
+  impact(b.x, 1.2, b.z, 4, b.kind === 'squad' ? SPKC.cyan : SPKC.violet); lightFlash(b.x, 2, b.z, b.kind === 'squad' ? 0x40ffc0 : 0xc060ff, 8, 0.4);
   if (b.kind === 'gun') { track('guns', 1); S.wtype = b.gun; floatText(WEAP[b.gun].name, b.x, 3.2, b.z, 'gold'); sfx.win(); ring.position.set(S.squadX, 0.08, 0); ring.scale.setScalar(0.6); ring.material.opacity = 1; ring.material.color.copy(col(0xffd040)); }
   else if (b.kind === 'weapon') { S.weapon = Math.min(10, S.weapon + 1); floatText('ARME NIV. ' + S.weapon, b.x, 3, b.z, 'gold'); sfx.win(); }
   else { gainPower(b.reward); floatText('+' + fmt(b.reward), b.x, 3, b.z, 'good'); sfx.gate(true); }
@@ -1676,14 +1770,14 @@ function makeBoss(type) {
   const hp = head.position, eyeZ = type === 'mariee' ? -0.27 : type === 'boucher' ? -0.38 : -0.32, eyeY = type === 'contremaitre' ? 0.0 : type === 'boucher' ? 0.05 : 0.02, eyeX = type === 'mariee' ? 0.09 : type === 'boucher' ? 0.13 : 0.11;
   for (const s of [-1, 1]) { const e = new THREE.Mesh(Sp(0.045, 8, 6), eyeM); e.position.set(hp.x + s * eyeX, hp.y + eyeY, hp.z + eyeZ); g.add(e); }
   g.rotation.y = Math.PI; g.scale.setScalar(BOSSES[type].scale);
-  return { g, legs, arms, head, type };
+  return { g, legs, arms, head, type, mat };
 }
 function spawnBoss() {
   const dps = squadDps();
   const hp = 120 + S.level * 120 + dps * Math.min(16, 7 + S.level * 0.8);
   const type = bossType(S.level), b = makeBoss(type); b.g.position.set(0, 0, SPAWNZ - 6); scene.add(b.g);
   b.g.updateMatrixWorld(true); const top = new THREE.Box3().setFromObject(b.g).max.y + 0.6;
-  S.boss = Object.assign(b, { x: 0, z: SPAWNZ - 6, hp, max: hp, ph: 0, atk: 1.5, wind: 0, minion: 3, flash: 0, top, label: makeLabel(true) });
+  S.bTrail = 1; S.boss = Object.assign(b, { x: 0, z: SPAWNZ - 6, hp, max: hp, ph: 0, atk: 1.5, wind: 0, minion: 3, flash: 0, top, label: makeLabel(true) });
   S.boss.label.sp.scale.set(4.2, 1.6, 1);
   $('bossName').textContent = BOSSES[type].name;
   $('bossBox').hidden = false; sfx.roar(); S.shake = 0.4; banner(BOSSES[type].name, 'APPROCHE');
@@ -1864,7 +1958,7 @@ function update(dt) {
         bullets.push({ x: s.x + mz.x * ts, y: mz.y * ts, z: s.z + mz.z * ts, vx: Math.sin(a) * W.spd, vz: -Math.cos(a) * W.spd, dmg, life, max: life, w: S.wtype, pierce: W.pierce || 0, last: null, sz: ts });
       }
       if ((S.wtype === 'rifle' || S.wtype === 'minigun') && Math.random() < 0.35 && parts.length < MAXP) parts.push({ x: s.x + (mz.x + 0.12) * ts, y: (mz.y + 0.05) * ts, z: s.z - 0.4, vx: rand(2, 3.5), vy: rand(2, 3.2), vz: rand(-0.5, 0.8), life: 0.7, max: 0.7, size: 0.07, c: C.brass });
-      if (S.wtype === 'rocket') sfx.rocket();
+      if (S.wtype === 'rocket') { sfx.rocket(); if (Math.random() < 0.5) lightFlash(s.x, 1.5, s.z - 1.4, 0xffa040, 4, 0.12); }
     }
     if (S.wtype === 'flame') sfx.flame(); else if (S.wtype === 'laser') sfx.laser(); else if (S.wtype !== 'rocket') sfx.shot();
     if (!W.flame) for (let i = 0; i < n; i++) {
@@ -1875,8 +1969,10 @@ function update(dt) {
     }
   }
   flashMesh.count = fc; flashMesh.instanceMatrix.needsUpdate = true;
-  gunLight.position.set(S.squadX, 2.2, -1.6);
-  gunLight.intensity = firing && n ? rand(1.4, 2.6) * Math.min(1.6, 0.6 + n * 0.05) : 0;
+  const GL = { rifle: [0xffb060, 1.6, -1.6], minigun: [0xffa040, 2.6, -1.8], shotgun: [0xffc070, 2.2, -1.6], laser: [0x50d8ff, 2.2, -2.2], flame: [0xff6a18, 5.2, -3.6], rocket: [0xff9040, 1.4, -1.8] }[S.wtype];
+  gunLight.color.set(GL[0]); gunLight.distance = S.wtype === 'flame' ? 24 : 16;
+  gunLight.position.set(S.squadX, S.wtype === 'flame' ? 1.4 : 2.2, GL[2]);
+  gunLight.intensity = firing && n ? GL[1] * rand(0.6, 1.15) * Math.min(1.7, 0.6 + n * 0.06) : 0;
 
   // grille de collision des zombies
   const cells = grid; for (let c = 0; c < GRIDN; c++) cells[c].length = 0;
@@ -1899,7 +1995,7 @@ function update(dt) {
       const br = barrels[k];
       if (Math.abs(b.x - br.x) < 0.95 && b.z < br.z + 1.2 && pz > br.z - 1.2) {
         br.hp -= b.dmg; br.pulse = 0.12; hit = true;
-        if (Math.random() < 0.3) burst(b.x, b.y, br.z + 1.1, C.spark, 1, 3, 0.08);
+        if (Math.random() < 0.4) { sparks(b.x, b.y, br.z + 1.1, 2, 6, SPKC.hot); if (Math.random() < 0.3) impact(b.x, b.y, br.z + 1.15, 0.7); }
         if (br.hp <= 0) destroyBarrel(k); else drawBarrel(br);
         break;
       }
@@ -1908,15 +2004,16 @@ function update(dt) {
       const t = trucks[k];
       if (Math.abs(b.x - t.x) < 1.4 && b.z < t.z + 2.8 && pz > t.z - 2.8) {
         t.hp -= Wb.flame ? b.dmg * dt * 14 : b.dmg; t.flash = 0.05; hit = !Wb.flame;
-        if (Math.random() < 0.3) burst(b.x, rand(0.8, 2.4), t.z + 2.7, C.spark, 1, 3, 0.08);
+        if (Math.random() < 0.4) { const iy = rand(0.8, 2.4); sparks(b.x, iy, t.z + 2.75, 2, 7, SPKC.hot); if (Math.random() < 0.3) impact(b.x, iy, t.z + 2.8, 0.9); }
         if (t.hp <= 0) truckDie(k, false);
         break;
       }
     }
     const bo = S.boss;
     if (!hit && bo && bo.hp > 0 && Math.abs(b.x - bo.x) < 1.9 && b.z < bo.z + 1.4 && pz > bo.z - 1.4) {
-      bo.hp -= b.dmg; bo.flash = 0.05; hit = true;
-      if (Math.random() < 0.25) burst(b.x, rand(1.5, 5), bo.z + 1.2, C.blood, 2, 3, 0.14);
+      bo.hp -= b.dmg; bo.flash = 0.06; hit = true; S.bHitT = S.timer;
+      if (Math.random() < 0.3) { const iy = b.y + rand(0.2, 3.5); impact(b.x + rand(-0.4, 0.4), iy, bo.z + 1.4, rand(0.9, 1.7), Wb.flame ? SPKC.hot : SPKC.white); sparks(b.x, iy, bo.z + 1.4, 3, 7, SPKC.hot); }
+      if (Math.random() < 0.2) burst(b.x, rand(1.5, 5), bo.z + 1.2, C.blood, 2, 3, 0.14);
       if (bo.hp <= 0) bossDie();
     }
     if (!hit) {
@@ -2026,8 +2123,7 @@ function update(dt) {
           bo.atk = Math.max(0.8, 1.5 - S.level * 0.05);
           const k = Math.min(soldiers.length, 2 + Math.floor(S.level / 2));
           for (let q = 0; q < k; q++) { const j = nearestSoldier(bo.x, bo.z); if (j >= 0) hitBody(j, 4 + S.level); }
-          ring.position.set(bo.x, 0.08, bo.z + 2); ring.scale.setScalar(0.5); ring.material.opacity = 1;
-          burst(bo.x, 0.3, bo.z + 2, C.smoke, 16, 5, 0.3); sfx.boom(false); S.shake = 0.6;
+          shockwave(bo.x, bo.z + 2.2, 1); sfx.boom(true);
         }
       }
       bo.x += clamp(S.squadX - bo.x, -1, 1) * dt * 1.2;
@@ -2036,8 +2132,12 @@ function update(dt) {
     }
     bo.flash = Math.max(0, bo.flash - dt);
     bo.g.position.set(bo.x + (bo.flash > 0 ? rand(-0.06, 0.06) : 0), 0, bo.z);
-    $('bossBar').style.width = Math.max(0, bo.hp / bo.max * 100) + '%';
-    bo.label.sp.position.set(bo.x, bo.top, bo.z); drawLabel(bo.label, bo.hp, bo.hp / bo.max);
+    const bf = Math.max(0, bo.hp / bo.max); $('bossBar').style.width = (bf * 100) + '%';
+    if (S.timer - S.bHitT > 0.35) S.bTrail += (bf - S.bTrail) * Math.min(1, dt * 3);
+    $('bossTrail').style.width = (Math.max(bf, S.bTrail) * 100) + '%'; $('bossHp').textContent = fmt(Math.ceil(bo.hp));
+    const bb = $('bossBox'); bb.classList.toggle('low', bf < 0.3); if (bo.flash > 0 && !bb.classList.contains('hit')) { bb.classList.add('hit'); setTimeout(() => bb.classList.remove('hit'), 120); }
+    const fk = bo.flash > 0 && Math.random() < 0.45 ? rand(0.1, 0.28) : 0; bo.mat.emissive.setRGB(fk, fk * 0.8, fk * 0.6);
+    bo.label.sp.visible = false;
   }
   if (ring.material.opacity > 0) { ring.scale.multiplyScalar(1 + dt * 5); ring.material.opacity = Math.max(0, ring.material.opacity - dt * 2); }
 
@@ -2065,13 +2165,16 @@ function update(dt) {
   if (st === 'lost' && S.timer > 1.3) showOver();
   if (st === 'won' && S.timer > 1.8) showClear();
 
-  atmos(dt, dz);
+  atmos(dt, dz); updateFx(dt, dz);
+  if (ring2.material.opacity > 0) { ring2.scale.multiplyScalar(1 + dt * 4.2); ring2.material.opacity = Math.max(0, ring2.material.opacity - dt * 1.4); }
   // caméra
   S.shake = Math.max(0, S.shake - dt * 1.6);
-  const sh = S.shake * S.shake * 1.2;
+  const sh = S.shake * S.shake * 1.2, tt = S.timer * 38;
   const T = V3.set(S.squadX * 0.32, 0, -8);
-  camera.position.set(T.x + CAMDIR.x * camDist + rand(-sh, sh), CAMDIR.y * camDist + rand(-sh, sh), T.z + CAMDIR.z * camDist);
+  camera.position.set(T.x + CAMDIR.x * camDist + (Math.sin(tt) + Math.sin(tt * 2.3) * 0.5) * sh * 0.7, CAMDIR.y * camDist + (Math.sin(tt * 1.7 + 1) + Math.sin(tt * 3.1) * 0.4) * sh * 0.7, T.z + CAMDIR.z * camDist);
   camera.lookAt(T.x, 0, T.z);
+  if (sh > 0.001) camera.rotation.z += Math.sin(tt * 1.3) * sh * 0.03;
+  const fv = camFov + S.punch * S.punch * 7; if (Math.abs(camera.fov - fv) > 0.01) { camera.fov = fv; camera.updateProjectionMatrix(); }
   sky.position.copy(camera.position);
   sun.position.set(S.squadX + TH.sun[0], TH.sun[1], TH.sun[2]); sun.target.position.set(S.squadX, 0, -12);
 
@@ -2086,7 +2189,8 @@ function explode(x, z, dmg, r) {
   const bo = S.boss; if (bo && bo.hp > 0 && Math.abs(bo.x - x) < r + 1.5 && Math.abs(bo.z - z) < r + 1.5) { bo.hp -= dmg * 0.5; if (bo.hp <= 0) bossDie(); }
   if (dmg > 0) for (let k = trucks.length - 1; k >= 0; k--) { const t = trucks[k]; if (Math.abs(t.x - x) < r + 1.3 && Math.abs(t.z - z) < r + 2.6) { t.hp -= dmg * 0.5; if (t.hp <= 0) truckDie(k, false); } }
   burst(x, 0.6, z, C.yellow, 12, 7, 0.16); burst(x, 0.8, z, C.spark, 12, 5, 0.2); burst(x, 1.2, z, C.smoke, 7, 2.5, 0.45);
-  addDecal(x, z, r * 0.45); S.shake = Math.max(S.shake, 0.3);
+  addDecal(x, z, r * 0.45); S.shake = Math.max(S.shake, 0.4);
+  sparks(x, 0.8, z, 18, 9, SPKC.hot); smoke(x, 0.8, z, 3, 2.2); if (r > 0.5) { impact(x, 1, z, r * 1.6, SPKC.hot); lightFlash(x, 1.5, z, 0xff9040, 6, 0.3); }
   if (S.timer - tBoomX > 0.09) { tBoomX = S.timer; sfx.boom(false); }
 }
 function nearestSoldier(x, z) { let best = -1, bd = 1e9; for (let k = 0; k < soldiers.length; k++) { const d = Math.hypot(soldiers[k].x - x, soldiers[k].z - z); if (d < bd) { bd = d; best = k; } } return best; }
@@ -2344,7 +2448,7 @@ $('muteBtn').addEventListener('click', () => { muted = !muted; if (master) maste
 function resize() {
   const w = innerWidth, h = innerHeight, a = w / h;
   renderer.setSize(w, h, false);
-  camera.aspect = a; camera.fov = a < 1 ? 60 : 50;
+  camera.aspect = a; camera.fov = camFov = a < 1 ? 60 : 50;
   const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   camDist = Math.max(16, 7.3 / (t * a) * 0.78);
   camera.updateProjectionMatrix();
@@ -2371,7 +2475,7 @@ function frame(t) {
   const now = t / 1000; let dt = last ? Math.min(0.05, now - last) : 0.016; last = now;
   if (S.slow > 0) { S.slow -= dt; dt *= 0.3; }
   update(dt);
-  if (composer) { gradePass.uniforms.time.value = now; gradePass.uniforms.hurt.value = S.hurt; gradePass.uniforms.flash.value = S.flash * S.flash; composer.render(dt); }
+  if (composer) { gradePass.uniforms.time.value = now; gradePass.uniforms.hurt.value = S.hurt; gradePass.uniforms.flash.value = S.flash * S.flash; gradePass.uniforms.tintA.value = S.tintA; gradePass.uniforms.tintC.value.set(...(S.tintC === 1 ? [0.3, 0.8, 1] : S.tintC === 2 ? [1, 0.15, 0.1] : [1, 0.6, 0.25])); composer.render(dt); }
   else renderer.render(scene, camera);
   perf(dt);
 }
